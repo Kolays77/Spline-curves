@@ -4,10 +4,6 @@
 #include "../include/tools.h"
 #include "../include/integral.h"
 
-
-template<typename T>
-using Rational = std::pair<Point<Poly<T>>, Poly<T>>;
-
 template<typename T>
 Rational<T> de_boor_nurbs(int k,
                           std::vector<T>& knots,
@@ -96,6 +92,9 @@ std::vector<std::complex<T>> frac_decomp_matrix(Poly<T> num, Poly<T> den,
     return res;
 }
 
+template<typename T>
+using Rational = std::pair<Point<Poly<T>>, Poly<T>>;
+
 
 template<typename T>
 struct NURBS{
@@ -108,7 +107,6 @@ struct NURBS{
     std::pair<int,int> domain;
     std::vector<int> ks;
     std::vector<Rational<T>> coefs;
-    std::string type;
 
 public:
     NURBS(int p_,
@@ -122,59 +120,60 @@ public:
         dim = cv[0].dim;
         domain = {p, knots.size() - p - 1};
         ks = create_intervals(domain,knots);
-        type = "default";
         create_coefs();
-
+        polishing();
     }
 
     NURBS(int p_,
           std::vector<T>& weights_,
-          std::vector<Point<T>>& cv_,
-          std::string type_="uniform2") {
+          std::vector<Point<T>>& cv_) {
         p = p_;
-        if (type_ == "uniform2") {
-            knots = create_knots<T>(cv_.size(), p);
-            type = type_;
-        }
-        weights = weights_;
         cv = cv_;
+        weights = weights_;
+        knots = create_knots<T>(cv.size(), p);
         dim = cv[0].dim;
         domain = {p, knots.size() - p - 1};
         ks = create_intervals(domain,knots);
         create_coefs();
+        polishing_uniform();
     }
 
     void create_coefs(){
-        for (int k : ks) 
-            coefs.push_back(de_boor_nurbs( k, knots,weights, cv, p));
+        for (int k : ks) coefs.push_back(de_boor_nurbs( k, knots,weights, cv, p));
+    }
 
-        if (type == "uniform2") {
-            int len = coefs.size();
+    void polishing() {
+        for (auto& frac: coefs){
+            frac.second.update_real();
+            for (int d=0; d < dim; ++d){
+                frac.first[d].update_real();
+            }
+        }
+    }
+
+    void polishing_uniform() {
+        int len = coefs.size();
+        if (len <= 2*(p-1)) {
+            polishing();
+        } else {
             for (int i = 0; i < p-1; ++i){
                 coefs[i].second.update_real();
                 coefs[len - i - 1].second.update_real();
-                
+
                 for (int d=0; d < dim; ++d){
                     coefs[i].first[d].update_real();
-                    coefs[len-i-1].first[d].update_real();   
+                    coefs[len-i-1].first[d].update_real();
                 }
             }
-
             for (int i = p-1; i < len-p+1; ++i) {
                 coefs[i].second.resize(1);
                 for (int d=0; d < dim; ++d){
                     coefs[i].first[d].update_real();
                 }
             }
-        } else {
-            for (auto& frac: coefs){
-                frac.second.update_real();
-                for (int d=0; d < dim; ++d){
-                    frac.first[d].update_real();
-                }
-            }   
-        }
+        } 
     }
+
 
     std::vector<Point<T>> get_points(int N) {
         std::vector<Point<T>> points(N, Point<T>(dim));
@@ -219,7 +218,6 @@ public:
     }
 
     void save_coefs(std::string path_dir = "") {
-        
         std::string path_x="coefs_num_x.out";
         std::string path_y="coefs_num_y.out";
         std::string den = "coefs_den.out";
@@ -235,12 +233,9 @@ public:
         }
     }
 
-    T integral() {
-        //auto ps  = get_integrate_points(); //  load_vector<T>("integrate_points.txt");
-        //auto ws = get_integrate_weights(); // load_vector<T>("integrate_weights.txt");
+    T numerical_integral() {
         auto ps = POINTS;
         auto ws = WEIGHTS;
-
         int n = ps.size();
         T A, B;
         T sum = 0.0;
@@ -254,8 +249,9 @@ public:
             T sum_temp = 0.0;
             for (int j = 0; j < n; ++j) {
                 T x = T(B-A)*ps[j]/2 + T(A+B)/2;
-                T den_cubic = std::pow(den.At(x),3);
-                sum_temp += ws[j]* p_y.At(x) * (p_x.der().At(x)*den.At(x) - den.der().At(x)*p_x.At(x)) / den_cubic;
+                T den_quadratic = std::pow(den.At(x),2);
+                sum_temp += ws[j] * p_y.At(x) * p_x.der().At(x) / den_quadratic;
+                sum_temp -= ws[j] * p_y.At(x) * den.der().At(x)*p_x.At(x) / den_quadratic / den.At(x); //
             }
             sum += (B-A)/2.0 *sum_temp;
             ++i;
@@ -263,58 +259,130 @@ public:
         return sum;
     }
 
-
-    //using second method
-    std::complex<T> analytic_integral(int type = 1) {
-        T from, to;
+    std::complex<T> analytic_integral1(int type = 1) {
         std::complex<T> sum = 0.0;
         size_t n = ks.size();
-        std::vector<std::pair<int, std::complex<T>>> roots;
-        std::vector<std::pair<int, std::complex<T>>> roots_num;
+        std::complex<T> left_sum = 0.0;
+        std::complex<T> right_sum = 0.0;
+        
+        for (int i = 0; i<n; ++i) {
+            std::complex<T> val = 0.0;
+            Poly<T> p_x, p_x_der, p_y, den, num;
+            Poly<T> temp;
+            T from = knots[ks[i]];
+            T to = knots[ks[i] + 1];
+            den = coefs[i].second;
+            
+            p_x = coefs[i].first[0];
+            p_y = coefs[i].first[1];
+            p_x_der = coefs[i].first[0].der();
+            
+            std::vector<std::pair<int, std::complex<T>>> roots = den.solve(type);
+            int n_roots = roots.size();
+            std::vector<std::complex<T>> vec_root(n_roots);
+            for (int j = 0; j < n_roots; ++j) {
+                vec_root[j] = roots[j].second;
+            }
+            std::complex<T> temp_sum = 0.0;
+            
+            std::complex<T> norm_den = den.normalize();
+            
+            norm_den *= norm_den;         
+            auto div1 = p_y / den;
+            auto div2 = p_x_der / den;
+            
+            Poly<T> P_12 = div1[0] * div2[0];
+            temp_sum +=  P_12.integral(from, to) / norm_den;
+            num = div1[0] * div2[1] + div2[0] * div1[1];
+            auto div3 = num / den;    
+            temp_sum += div3[0].integral(from, to) / norm_den;
+            temp_sum += integral(div3[1], vec_root, from, to) / norm_den;
+            temp_sum += integral(div1[1], div2[1], vec_root, from, to) / norm_den;
+            left_sum += temp_sum;
 
-        Poly<T> p_x, p_y, den, NUM;
+
+            temp_sum = 0.0;
+            div2 =  p_x / den;
+            P_12 = div1[0] * div2[0];
+            Poly<std::complex<T>> P_12_complex  = make_complex_poly<T>(P_12);
+            num = div1[0] * div2[1] + div2[0] * div1[1];
+            auto div4 = num / den;
+            Poly<std::complex<T>> P4 = make_complex_poly<T>(div4[0]);
+            for (int j = 0; j < n_roots; ++j) {
+                Poly<std::complex<T>> divider(std::vector<std::complex<T>>{1.0, -vec_root[j]});
+                auto div3_complex = P_12_complex / divider;    
+                temp_sum +=  integral_type_1(div3_complex[1][0], vec_root[j], 1, from, to) / norm_den;
+                temp_sum += div3_complex[0].integral(from, to) / norm_den;
+                auto div5 = P4 / divider;
+                temp_sum += div5[0].integral(from, to) / norm_den;
+                temp_sum += integral_type_1(div5[1][0], vec_root[j], 1, from, to) / norm_den;
+                temp_sum += integral(div4[1], vec_root, j, from, to) / norm_den;         
+                temp_sum += integral(div1[1], div2[1], vec_root, j, from, to) / norm_den;   
+            }
+            right_sum += temp_sum;
+        }
+        sum = left_sum - right_sum;
+        return sum;
+    }
+
+
+    //using second method
+    std::complex<T> analytic_integral2(int type = 1) {
+        T from, to;
+        std::complex<T> sum = 0.0;
+        std::complex<T> left_sum = 0.0;
+        std::complex<T> right_sum = 0.0;
+
+        size_t n = ks.size();
+        std::vector<std::pair<int, std::complex<T>>> roots;
+        std::complex<T> val = 0.0;
+        Poly<T> den, num1, num2;
         Poly<T> temp;
         for (int i=0; i<n; ++i) {
             from = knots[ks[i]];
             to = knots[ks[i] + 1];
-            p_x = coefs[i].first[0];
-            p_y = coefs[i].first[1];
-            den = coefs[i].second;
-            NUM = p_y * (p_x.der() * den - den.der() * p_x);
 
-            NUM.update_real();
+            den = coefs[i].second;
+            num1 = coefs[i].first[1] * (coefs[i].first[0].der() * den);
+            num2 = - coefs[i].first[1] *  den.der() * coefs[i].first[0];
 
             std::complex<T> a0 = den.normalize();
-            roots = den.solve(type);
 
+            roots = den.solve(type);
             den *= den * den;
             a0 *= a0 * a0;
 
-            for (auto &root: roots) {
-                root.first *= 3;
+            for (auto &root: roots) root.first *= 3;
+
+            std::complex<T> b1 = num1.normalize();
+            std::complex<T> b2 = num2.normalize();
+
+            if (num1.deg() >= den.deg()) {
+                auto div = num1 / den;
+                left_sum +=  b1 / a0 * div[0].integral(from, to);
+                num1 = div[1];
             }
 
-            std::complex<T> b0 = NUM.normalize();
-
-            if (NUM.deg() >= den.deg()) {
-                auto div = NUM / den;
-                sum +=  b0 / a0 * div[0].integral(from, to) ;
-                NUM = div[1];
+            if (num2.deg() >= den.deg()) {
+                auto div = num2 / den;
+                right_sum +=  b2 / a0 * div[0].integral(from, to);
+                num2 = div[1];
             }
 
-            std::vector<std::complex<T>> res = frac_decomp_matrix(NUM, den, roots);
+
+            std::vector<std::complex<T>> res1 = frac_decomp_matrix(num1, den, roots);
+            std::vector<std::complex<T>> res2 = frac_decomp_matrix(num2, den, roots);
+
             int j = 0;
-            for (const auto &root: roots) {
+            for (auto &root: roots) {
                 for (int k = 1; k <= root.first; ++k) {
-                    sum +=  b0 / a0 * Integral_first_type(res[j], root.second, k, from, to);
+                    left_sum  +=   b1 / a0 * integral_type_1(res1[j], root.second, k, from, to);
+                    right_sum +=   b2 / a0 * integral_type_1(res2[j], root.second, k, from, to);
                     ++j;
                 }
             }
         }
+        sum = left_sum + right_sum;
         return sum;
     }
-
 };
-
-
-

@@ -24,9 +24,7 @@ void test_error_root_finding(int n) {
     std::cout << "Total err2 : " << sum_err2 << "\n\n";
 }
 
-
-
-int main(int argc, char* argv[]) {
+void test_cubic(char* argv[]) {
     // test cubic solve
     double a = std::atof(argv[1]);
     double b = std::atof(argv[2]);
@@ -53,8 +51,31 @@ int main(int argc, char* argv[]) {
     for (auto root : roots3) {
          std::cout << root.first << " " << root.second << "\n";
     }
+}
 
+void test_division() {
+    Poly<double> num({21312312.0, -123124.34343, 6.0});
+    Poly<double> den({8.0, 4.0});
+    std::cout << num << "\n";
+    std::cout << den << "\n";
     
+    auto res = num / den;
+    std::cout << res[0] << ", " << res[1] << "\n";
+    std::cout << res[0] * den + res[1] << "\n";
+}
+
+void test_normalization() {
+    Poly<double> poly({-2.0, -2.0, 3.0});
+    std::cout << poly << "\n";
+    double a = poly.normalize();
+    std::cout << a << "\n";
+    std::cout << poly << "\n";
+    std::cout << a*poly << "\n";
+    
+}
+
+int main(int argc, char* argv[]) {
+    test_normalization();
     return 0;
 }
 

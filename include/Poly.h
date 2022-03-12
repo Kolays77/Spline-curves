@@ -8,7 +8,9 @@
 #include <utility>
 #include <complex>
 
+#include "tools.h"
 #include "Eigen/Dense"
+#include "quartic.h"
 
 template < typename Iterator >
 std::ostream & PrintIter(std::ostream & os, Iterator begin, Iterator end) {
@@ -249,17 +251,6 @@ inline T Poly<T> ::At(const T & x) const{
 }
 
 
-//NEVER DONT USES
-//template < typename T >
-//std::vector<T> Poly<T> ::At(const std::vector<T> & points) {
-//    std::vector<T> values(points.size());
-//    const size_t len = points.size();
-//    for (size_t i = 0; i < len; ++i) {
-//        values[i] = Poly<T> ::At(points[i]);
-//    }
-//    return values;
-//}
-
 template < typename T >
 T Poly<T> ::operator[](size_t index) const {
     return coef_[index];
@@ -352,7 +343,6 @@ std::vector<std::pair<int, std::complex<T>>> solve_quadratic(const Poly<T>& poly
 template<typename T>
 std::vector<std::pair<int, std::complex<T>>> solve_cubic(const Poly<T>& poly){
     // solve cubic poly
-    
     T a = poly[1] / poly[0];
     T b = poly[2] / poly[0];
     T c = poly[3] / poly[0];
@@ -398,18 +388,28 @@ std::vector<std::pair<int, std::complex<T>>> solve_cubic(const Poly<T>& poly){
         T B = Q / A ;
         T root = (A + B - a / 3.0);
         Poly<T> quadratic = (poly / Poly<T>({1.0, -root}))[0];
-
         auto res = solve_quadratic(quadratic);
         res.push_back({1, std::complex<T>(root)});
         return res;
     }
 }
 
-// Rewrite solve 3-4 degree poly
+template<typename T>
+std::vector<std::pair<int, std::complex<T>>>  solve_quartic(Poly<T> poly)  {
+    std::vector<std::pair<int, std::complex<T>>> roots;
+    std::vector<std::complex<T>> vec_root = solveP4(poly[1]/poly[0], 
+                                                    poly[2]/poly[0], 
+                                                    poly[3]/poly[0], 
+                                                    poly[4]/poly[0]);
+    for (int i = 0; i < 4; ++i) {
+        roots.push_back({1, vec_root[i]});
+    }
+    return roots;
+}
+
+
 template<typename T>
 std::vector<std::pair<int, std::complex<T>>>  Poly<T>::solve(int type)  {
-    
-    
     if (deg_ == 1){ // [2 1] -> [1 1/2]
         return {{1, std::complex<T>(-coef_[1]/coef_[0])}};
     }
@@ -419,7 +419,10 @@ std::vector<std::pair<int, std::complex<T>>>  Poly<T>::solve(int type)  {
     if (deg_ == 3){
         return solve_cubic(*this);
     }
-    if (deg_ >= 4){
+    if (deg_ == 4){
+        return solve_quartic(*this);
+    }
+    if (deg_ > 4){
         return solve_numerical(*this, type);
     }
     return {{1, 0}};
@@ -461,15 +464,13 @@ T lower_bound(const Poly<std::complex<T>>& poly) {
 
 template<typename T>
 std::vector<std::pair<int, std::complex<T>>> solve_with_eigenvalues(Poly<T> poly) {
-    // normalize
-    
-    if (poly[0] != 1.0) {
+    if (poly[0] != 1.0)
         poly.normalize();
-    }
 
     std::vector<std::pair<int, std::complex<T>>> res;
     size_t n = poly.deg();
     Eigen::MatrixX<T> m(n,n);
+    
     m.setZero();
     for(int i=1; i <= n; ++i){
         m(i-1,n-1) = -poly[n-i+1];
@@ -520,7 +521,17 @@ std::vector<std::pair<int, std::complex<T>>> solve_laguerre(const Poly<T>& poly)
             if (std::abs(a) < eps) break;
             x -= a;
         }
-        X[1] = -x; p /= X; ++d;
+        polish_complex(x, T(1e-14));
+
+        if (std::abs(x.imag()) >= T(1e-9)) {
+            ++d;
+            X[1] = -std::conj(x);
+            p /= X;
+            res.push_back({m, std::conj(x)});         
+        }      
+
+        X[1] = -x;
+        p /= X; ++d;
         res.push_back({m, x});
         X[1] = 0;
     }
@@ -571,7 +582,7 @@ template <typename T>
 void Poly<T>::resize(int deg) {
     int temp = deg_;
     deg_ = deg;
-    coef_ = std::vector(coef_.begin() + (temp - deg),  coef_.end());
+    coef_ = std::vector<T>(coef_.begin() + (temp - deg),  coef_.end());
 }
 
 template<typename T>
@@ -580,18 +591,13 @@ Poly<T>::Poly(const std::initializer_list<T> &coefs) {
     deg_ = coef_.size() - 1;
 }
 
-template<typename T>
-T Poly<T>::eval(const T &x) const {
-    if (deg_==0) {
-        return coef_[0];
+template < typename T >
+inline T Poly<T> ::eval(const T & x) const{
+    T b = coef_[0];
+    for (int d = 1; d <= deg_; ++d) {
+        b = coef_[d] + b * x;
     }
-    T sum = 0;
-    T t = 1.0;
-    for (auto it = coef_.rbegin(); it != coef_.rend(); ++it){
-        sum += t * (*it);
-        t *= x;
-    }
-    return sum;
+    return b;
 }
 
 template<typename T>
@@ -677,7 +683,7 @@ std::vector<Poly<T>> operator/(const Poly<T>& lhs,
     size_t deg2 = rhs.deg();
 
     if (deg1 < deg2) {
-        throw  std::logic_error("deg lhs poly < deg rhs poly. Operator /");
+        return {Poly<T>{std::vector<T>(1, 0.0)}, lhs};
     }
 
     Poly<T> rem = lhs;
@@ -695,11 +701,38 @@ std::vector<Poly<T>> operator/(const Poly<T>& lhs,
     return {Poly<T>{res}, rem};
 }
 
+// template < typename T >
+// std::ostream & operator << (std::ostream & out,
+//                             const Poly<T> & p) {
+//     return PrintVec(out, p.GetCoef());
+// }
+
+template < typename T >
+std::ostream & operator << (std::ostream & out,
+                            const std::complex<T> & val) {
+    return out << "(" << val.real() << " + (" << val.imag() << "i))";
+}
+
+
+// FOR DEBUG and wolfram
 template < typename T >
 std::ostream & operator << (std::ostream & out,
                             const Poly<T> & p) {
-    return PrintVec(out, p.GetCoef());
+    int deg = p.deg();
+    
+    if (deg == 0) {
+        return out << p[0];
+    }
+    
+    out << p[0] << " x^" << deg;
+    
+    for (int i = 1; i < deg; ++i) { 
+        out << " + " << p[i] << "x^" << deg - i;
+    }
+    out << " + " << p[deg];
+    return out;
 }
+
 
 template < typename T >
 bool operator == (const Poly<T> & p1, Poly<T> & p2) {

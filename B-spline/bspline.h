@@ -179,7 +179,7 @@ public:
         for (auto k: ks) {
             T a = knots[k];
             T b = knots[k + 1];
-            sum += numerical_integral_lenght(coefs[i][0], coefs[i][1], a, b);
+            sum += numerical_integral_length(coefs[i][0], coefs[i][1], a, b);
             ++i;
         }
         return sum;

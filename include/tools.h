@@ -9,6 +9,7 @@
 #include <random>
 #include <chrono>
 #include <algorithm>
+#include <complex>
 
 #include "Point.h"
 
@@ -32,9 +33,23 @@ std::vector<T> linspace(T start,
     return linspaced;
 }
 
+template<typename T>
+bool is_complex(std::complex<T>& value, const T& EPS) {
+    if (value.imag()  > EPS) 
+        return true;  
+    return false;
+}
+
 
 template<typename T>
-std::vector<T> generate_vector(int n, T t0= 0.0, T t1 = 0.0) {
+void polish_complex(std::complex<T>& value, const T& EPS) {
+    if (std::abs(value.imag()) < EPS) value.imag(0.0);
+    if (std::abs(value.real())  < EPS) value.real(0.0);
+}
+
+
+template<typename T>
+std::vector<T> generate_vector(int n, T t0= 0.0, T t1 = 1.0) {
     std::vector<T> res(n);
     std::mt19937_64 rng(std::chrono::steady_clock::now().time_since_epoch().count());
     for (int i = 0; i < n; ++i) {
@@ -44,9 +59,8 @@ std::vector<T> generate_vector(int n, T t0= 0.0, T t1 = 0.0) {
 }
 
 
-
 template<typename T>
-std::vector<T> generate_vector_sorted(int n, T t0= 0.0, T t1 = 0.0) {
+std::vector<T> generate_vector_sorted(int n, T t0= 0.0, T t1 = 1.0) {
     std::vector<T> res = generate_vector<T>(n, t0, t1);
     std::sort(res.begin(), res.end());
     return res;
@@ -80,12 +94,23 @@ std::vector<Point<T>> generate_points_sorted(int n, T x0 = 0.0, T x1 = 1.0, T y0
 
 template<typename T>
 std::vector<T> create_knots(int n, int p){
-    std::vector<T> res(n + p + 1);
+    std::vector<T> res(n + p + 1, 0.0);
     for (int i = 0; i <= p; ++i) res[n + p - i] = n-p;
     for (int i = 1; i < n - p; ++i) res[p + i] = i;
     for (int i = 0; i < n + p + 1; ++i) res[i] /= n-p;
     return res;
 }
+
+
+template<typename T>
+std::vector<T> generate_clamped_random_knot_vector(int n, int p){
+    std::vector<T> res = generate_vector<T>(n + p + 1, 0.0, 1.0);
+    std::sort(res.begin(), res.end());
+    // for (int i = 0; i <= p; ++i) res[i] = 0.0;
+    // for (int i = 0; i <= p; ++i) res[n + p - i] = 1.0;
+    return res;
+}
+
 
 template<typename T>
 void print(const std::vector<T>& vec) {
@@ -145,6 +170,19 @@ void save_vector(const std::vector<T>& vec,
     out << std::setprecision(16);
     for (const T& v : vec) {
         out << v << "\n";
+    }
+}
+
+
+template<typename T>
+void save_vector_errors(const std::vector<int>& vec_n, const std::vector<T>& vec_error,
+                           const std::string& file){
+
+    std::ofstream out(file);
+    out << std::setprecision(16);
+    int n_vec = vec_n.size();
+    for (int i = 0; i < n_vec; ++i) {
+        out << vec_n[i] << "  " << vec_error[i] << "\n";
     }
 }
 
