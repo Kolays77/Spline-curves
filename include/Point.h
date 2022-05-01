@@ -104,7 +104,7 @@ std::ostream & operator << (std::ostream & out,
     for (size_t d = 0; d < p.dim; ++d) {
         out << p.arr[d] << "\t";
     }
-    return out << "\n";
+    return out;
 }
 
 template<typename T>
@@ -119,7 +119,7 @@ void save_points(const std::string& file, const std::vector<Point<T>>& points){
     std::ofstream out(file);
     out << std::setprecision(16);
     for(const auto& point: points){
-        out << point;
+        out << point << "\n";
     }
     out.close();
 }

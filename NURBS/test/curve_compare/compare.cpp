@@ -3,7 +3,7 @@
 
 #include "../../../include/plot.h"
 
-#define N_plot 1000
+#define N_plot 10000
 
 template<typename T>
 void test(int p, int n) {

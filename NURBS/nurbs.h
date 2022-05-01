@@ -40,58 +40,6 @@ Rational<T> de_boor_nurbs(int k,
     return {d[p], d_den[p]};
 }
 
-
-template <typename T>
-std::vector<std::complex<T>> frac_decomp_matrix(Poly<T> num, Poly<T> den,
-                                                std::vector<std::pair<int, std::complex<T>>>  roots) {
-    // Ax = b
-    size_t n = roots.size();
-    std::vector<std::complex<T>> res;
-
-    size_t num_deg = num.deg();
-    size_t den_deg = den.deg();
-
-    Poly<std::complex<T>> Q(den.deg(), std::complex<T>(0.0));
-    Poly<std::complex<T>> P(num.deg(), std::complex<T>(0.0));
-
-    for (int i = 0; i <= num_deg; ++i)
-        P[i] = std::complex<T>(num[i]);
-
-    for (int i = 0; i <= den_deg;++i)
-        Q[i] = std::complex<T>(den[i]);
-
-    Eigen::VectorX<std::complex<T>> b(Q.deg());
-    b.setZero();
-    for(int i =0; i <= P.deg(); ++i)
-        b(i) = P[P.deg()-i];
-
-    Eigen::MatrixX<std::complex<T>> matrix(Q.deg(), Q.deg());
-    matrix.setZero();
-
-    int ii = 0;
-    for (int i = 0; i < n; ++i) {
-        Poly<std::complex<T>> Q_temp = Q;
-        Poly<std::complex<T>> x_a {1, -roots[i].second};
-
-        for (int j=0; j < roots[i].first; ++j) {
-            Q_temp /= x_a;
-            size_t deg = Q_temp.deg();
-            for (int k=0; k <= deg; ++k) {
-                matrix(k, ii) = Q_temp[deg-k];
-            }
-            ++ii;
-        }
-    }
-    //std::cout << matrix << "\n";
-    Eigen::VectorX<std::complex<T>> x = matrix.colPivHouseholderQr().solve(b);
-
-    //std::cout << x << "\n";
-    for(int i =0; i < x.size(); ++i)
-        res.push_back(x(i));
-
-    return res;
-}
-
 template<typename T>
 using Rational = std::pair<Point<Poly<T>>, Poly<T>>;
 
@@ -100,12 +48,13 @@ template<typename T>
 struct NURBS{
     int p;
     int dim;
+    int N_segments; // ks.size() - 1
 
     std::vector<T> knots;
     std::vector<T> weights;
     std::vector<Point<T>> cv;
     std::pair<int,int> domain;
-    std::vector<int> ks;
+    std::vector<int> ks; // indexes of knots (consist 0.0 and 1.0)
     std::vector<Rational<T>> coefs;
 
 public:
@@ -120,10 +69,13 @@ public:
         dim = cv[0].dim;
         domain = {p, knots.size() - p - 1};
         ks = create_intervals(domain,knots);
+        N_segments = ks.size() - 1;
+    
         create_coefs();
         polishing();
     }
 
+    // UNIFORM KNOT VECTOR
     NURBS(int p_,
           std::vector<T>& weights_,
           std::vector<Point<T>>& cv_) {
@@ -134,12 +86,16 @@ public:
         dim = cv[0].dim;
         domain = {p, knots.size() - p - 1};
         ks = create_intervals(domain,knots);
+        N_segments = ks.size() - 1;
+
         create_coefs();
         polishing_uniform();
     }
 
     void create_coefs(){
-        for (int k : ks) coefs.push_back(de_boor_nurbs( k, knots,weights, cv, p));
+        
+        for (int i = 0; i < N_segments; ++i) 
+            coefs.push_back(de_boor_nurbs(ks[i], knots,weights, cv, p));
     }
 
     void polishing() {
@@ -180,15 +136,14 @@ public:
         std::vector<T> ts = linspace(knots[domain.first], knots[domain.second], N);
         T t = knots[domain.first];
         int i = 0;
-        int j = 0;
-        for(int k : ks){
-            while (t <= knots[k+1] && i < N){
+        
+        for(int j = 0; j < N_segments; ++j){
+            while (t <= knots[ks[j+1]] && i < N){
                 for (int d = 0; d < dim; ++d){
                     points[i][d] = coefs[j].first[d].At(t) / coefs[j].second.At(t) ;
                 }
                 ++i; t = ts[i];
             }
-            ++j;
         }
         return  points;
     }
@@ -199,20 +154,17 @@ public:
                                      knots[domain.second], N);
         T t = knots[domain.first];
         int i = 0;
-        int j = 0;
-        for (int k: ks) {
+        for (int j = 0; j < N_segments; ++j) {
             Poly<T> p_x = coefs[j].first[0];
             Poly<T> p_y = coefs[j].first[1];
             Poly<T> den = coefs[j].second;
 
-            while (t <= knots[k + 1] && i < N) {
+            while (t <= knots[ks[j+1]] && i < N) {
                 points[i] = (p_y.der().At(t) * den.At(t) - p_y.At(t) *den.der().At(t)) /
                             (p_x.der().At(t) * den.At(t) - p_x.At(t) *den.der().At(t));
-
                 ++i;
                 t = ts[i];
             }
-            ++j;
         }
         return points;
     }
@@ -234,15 +186,15 @@ public:
     }
 
     T numerical_integral() {
-        auto ps = POINTS;
-        auto ws = WEIGHTS;
+        static const std::vector<long double> ps = POINTS;
+        static const std::vector<long double> ws = WEIGHTS;
         int n = ps.size();
         T A, B;
         T sum = 0.0;
-        int i = 0;
-        for(auto k : ks) {
-            A = knots[k];
-            B = knots[k+1];
+
+        for (int i = 0; i < N_segments; ++i) {
+            A = knots[ks[i]];
+            B = knots[ks[i+1]];
             Poly<T> p_x = coefs[i].first[0];
             Poly<T> p_y = coefs[i].first[1];
             Poly<T> den = coefs[i].second;
@@ -254,25 +206,30 @@ public:
                 sum_temp -= ws[j] * p_y.At(x) * den.der().At(x)*p_x.At(x) / den_quadratic / den.At(x); //
             }
             sum += (B-A)/2.0 *sum_temp;
-            ++i;
         }
         return sum;
     }
 
-    std::complex<T> analytic_integral1(int type = 1) {
+    std::complex<T> analytic_integral1(int type = 1, T t0=0.0, T t1=1.0) {
         std::complex<T> sum = 0.0;
-        size_t n = ks.size();
+    
         std::complex<T> left_sum = 0.0;
         std::complex<T> right_sum = 0.0;
         
-        for (int i = 0; i<n; ++i) {
+        for (int i = 0; i < N_segments; ++i) {
             std::complex<T> val = 0.0;
             Poly<T> p_x, p_x_der, p_y, den, num;
             Poly<T> temp;
             T from = knots[ks[i]];
-            T to = knots[ks[i] + 1];
-            den = coefs[i].second;
-            
+            T to = knots[ks[i + 1]];
+
+            if (from > t1) break; 
+            if (to < t0) continue;
+            from = from < t0 ? t0 : from;
+            to = to > t1 ? t1 : to; 
+
+
+            den = coefs[i].second;            
             p_x = coefs[i].first[0];
             p_y = coefs[i].first[1];
             p_x_der = coefs[i].first[0].der();
@@ -333,14 +290,13 @@ public:
         std::complex<T> left_sum = 0.0;
         std::complex<T> right_sum = 0.0;
 
-        size_t n = ks.size();
         std::vector<std::pair<int, std::complex<T>>> roots;
         std::complex<T> val = 0.0;
         Poly<T> den, num1, num2;
         Poly<T> temp;
-        for (int i=0; i<n; ++i) {
+        for (int i=0; i < N_segments; ++i) {
             from = knots[ks[i]];
-            to = knots[ks[i] + 1];
+            to = knots[ks[i+1]];
 
             den = coefs[i].second;
             num1 = coefs[i].first[1] * (coefs[i].first[0].der() * den);

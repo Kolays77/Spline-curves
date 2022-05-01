@@ -3,7 +3,7 @@
 
 #include "Point.h"
 
-//compile  g++ main.cpp -I/usr/include/python3.9  -lpython3.9 
+//compile  g++ main.cpp -I/usr/include/python3.10  -lpython3.10 
 
 namespace plt = matplotlibcpp;
 
@@ -139,6 +139,21 @@ void plot_curve_(std::vector<Point<T>>& points,
 
 
 // PLOT FUNCTIONS WITH SAVING //
+
+
+template<typename T>
+void plot_errors(std::vector<T> xs, 
+                std::vector<T> errors,  
+                const std::string& out="plot.png",
+                const std::string& title="", 
+                const std::string& legend="") {
+    set_figure(title); 
+    plot_errors_(xs, errors, legend);
+    plt::legend();
+    plt::save(out, 300);
+    plt::close();  
+}
+
 
 template<typename T>
 void plot_errors(std::vector<int> xs, 

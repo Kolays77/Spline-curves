@@ -15,8 +15,8 @@ void test_circle(){
     
     std::cout << std::setprecision(14);
     
-    std::complex<T> int1(NURBS.integral());
-    std::complex<T> int2(NURBS.analytic_integral());
+    std::complex<T> int1(NURBS.numerical_integral());
+    std::complex<T> int2(NURBS.analytic_integral1());
     std::cout << "Numerical integral :" << int1 << "\n";
     std::cout << "Analytic integral :" << int2 << "\n";
     std::cout << "Error :" << std::abs(int2 - int1) << "\n";

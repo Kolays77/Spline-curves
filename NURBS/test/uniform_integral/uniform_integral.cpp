@@ -4,14 +4,14 @@
 #define N_start 10
 #define N_end 100
 
-#define P_start 2
-#define P_end 8
+#define P_start 3 
+#define P_end 6
 
 template <typename T>
 void integral_fixed_deg() {
     // integral with increasing number of points
     // для нового числа точек происходит перегенерация
-
+    
     std::vector<std::vector<T>> vec_errors(P_end - P_start + 1, std::vector<T>(N_end - N_start + 1));
     std::vector<int> vec_N;
     
@@ -36,7 +36,7 @@ void integral_fixed_deg() {
     }
 
     save_vector_errors<T>(vec_N, vec_errors[P_end-P_start], "errors_" + std::to_string(P_end) + ".out");
-    plot_errors(vec_N, vec_errors[P_end-P_start], "errors_fixed_deg.png", "Вектор весов в интервале [1.0, 2.0]", "deg = " + std::to_string(P_end));
+    plot_errors(vec_N, vec_errors[P_end-P_start], "errors_fixed_deg.png", "", "deg = " + std::to_string(P_end));
     
     PLOT_END();
 }

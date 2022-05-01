@@ -1,6 +1,7 @@
 #pragma once
 #include "../include/Point.h"
 #include "../include/tools.h"
+#include "../include/integral.h"
 
 template< typename T>
 Point<T> num_nurbs_de_boor(double t,

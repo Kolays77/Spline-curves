@@ -86,18 +86,25 @@ std::vector<Point<T>> generate_points(int n, T x0 = 0.0, T x1 = 1.0, T y0 = 0.0,
 
 template<typename T>
 std::vector<Point<T>> generate_points_sorted(int n, T x0 = 0.0, T x1 = 1.0, T y0 = 0.0, T y1 = 1.0) {
-    // SORTED BY X
     std::vector<Point<T>> res = generate_points(n, x0, x1, y0, y1);
-    std::sort(res.begin(), res.end());
+    std::sort(res.begin(), res.end());  // SORTED BY X
     return res;
 }
 
 template<typename T>
 std::vector<T> create_knots(int n, int p){
     std::vector<T> res(n + p + 1, 0.0);
-    for (int i = 0; i <= p; ++i) res[n + p - i] = n-p;
-    for (int i = 1; i < n - p; ++i) res[p + i] = i;
+    for (int i = 0; i <= p; ++i) res[n + p - i] = T(n-p);
+    for (int i = 1; i < n - p; ++i) res[p + i] = T(i);
     for (int i = 0; i < n + p + 1; ++i) res[i] /= n-p;
+    return res;
+}
+
+
+template<typename T>
+std::vector<T> create_uniform_knot_vector(int n, int p){
+    std::vector<T> res(n + p + 1, 0.0);
+    for (int i = 0; i < n + p + 1; ++i) res[i] = T(i) / (n + p + 1);
     return res;
 }
 
@@ -106,8 +113,8 @@ template<typename T>
 std::vector<T> generate_clamped_random_knot_vector(int n, int p){
     std::vector<T> res = generate_vector<T>(n + p + 1, 0.0, 1.0);
     std::sort(res.begin(), res.end());
-    // for (int i = 0; i <= p; ++i) res[i] = 0.0;
-    // for (int i = 0; i <= p; ++i) res[n + p - i] = 1.0;
+    for (int i = 0; i <= p; ++i) res[i] = 0.0;
+    for (int i = 0; i <= p; ++i) res[n + p - i] = 1.0;
     return res;
 }
 
@@ -125,11 +132,24 @@ std::vector<T> ones(size_t n) {
 }
 
 template<typename T>
+std::vector<int> create_intervals_eps(std::pair<int, int> domain, std::vector<T> knots){
+    std::vector<int> intervals;
+    for (int i = domain.first; i <= domain.second; ++i)
+        if (std::abs(knots[i] - knots[i+1]) >= 1e-2)
+            intervals.push_back(i);
+
+    intervals.push_back(domain.second); // add first 1.0
+    return intervals;
+}
+
+template<typename T>
 std::vector<int> create_intervals(std::pair<int, int> domain, std::vector<T> knots){
     std::vector<int> intervals;
-    for (int i = domain.first; i < domain.second; ++i)
+    for (int i = domain.first; i <= domain.second; ++i) 
         if (knots[i] != knots[i+1])
             intervals.push_back(i);
+    
+    intervals.push_back(domain.second); // add first 1.0
     return intervals;
 }
 
@@ -211,7 +231,7 @@ void generate_n_file_points(int n, int len_cv, std::string dir) {
 
 
 template<typename T>
-T curve_length(const std::vector<Point<T>>& points){
+T sum_chords(const std::vector<Point<T>>& points){
     size_t n = points.size();
     T sum = 0.0;
     for (size_t i = 0; i < n-1; ++i) {
@@ -219,3 +239,4 @@ T curve_length(const std::vector<Point<T>>& points){
     }
     return sum;
 };
+

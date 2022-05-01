@@ -10,7 +10,7 @@
 
 #include "tools.h"
 #include "Eigen/Dense"
-#include "quartic.h"
+#include "solver.h"
 
 template < typename Iterator >
 std::ostream & PrintIter(std::ostream & os, Iterator begin, Iterator end) {
@@ -60,8 +60,11 @@ public:
 
     T eval(const T& x) const ;
 
+    std::complex<T> At(const std::complex<T> & x) const;
     T At(const T & x) const;
-    T At2(const T & x) const;
+
+    T At2(const T & x) const; //fma only for double
+    std::vector<T> At(const std::vector<T>& xs) const;
 
     T operator[](size_t index) const;
     T & operator[](size_t index);
@@ -242,6 +245,16 @@ inline T Poly<T> ::At2(const T & x) const{
 }
 
 template < typename T >
+std::vector<T> Poly<T>::At(const std::vector<T>& xs) const{
+    int n = xs.size();
+    std::vector<T> res(xs.size());
+    for (int i = 0; i < n;++i) {
+        res[i] = this->At(xs[i]);
+    }
+    return res;
+}
+
+template < typename T >
 inline T Poly<T> ::At(const T & x) const{
     T b = coef_[0];
     for (int d = 1; d <= deg_; ++d) {
@@ -250,6 +263,15 @@ inline T Poly<T> ::At(const T & x) const{
     return b;
 }
 
+template < typename T >
+std::complex<T> Poly<T> ::At(const std::complex<T> & x) const{
+    Poly<std::complex<T>> poly_complex = make_complex_poly(*this);
+    std::complex<T> b = poly_complex[0];
+    for (int d = 1; d <= deg_; ++d) {
+        b = poly_complex[d] + b * x;
+    }
+    return b;
+}
 
 template < typename T >
 T Poly<T> ::operator[](size_t index) const {
@@ -336,12 +358,12 @@ std::vector<std::pair<int, std::complex<T>>> solve_quadratic(const Poly<T>& poly
         return {{1, std::complex<T>((-b + std::sqrt(D))/2.0/a)},
                 {1, std::complex<T>((-b - std::sqrt(D))/2.0/a)}};
 
-    return {{1, std::complex<T>(-b/2/a, std::sqrt(-D)/2/a)}, 
-            {1, std::complex<T>(-b/2/a, -std::sqrt(-D)/2/a)}};
+    return {{1, std::complex<T>(-b/2.0/a, std::sqrt(-D)/2.0/a)}, 
+            {1, std::complex<T>(-b/2.0/a, -std::sqrt(-D)/2.0/a)}};
 }
 
 template<typename T>
-std::vector<std::pair<int, std::complex<T>>> solve_cubic(const Poly<T>& poly){
+std::vector<std::pair<int, std::complex<T>>> solve_cubic2(const Poly<T>& poly){
     // solve cubic poly
     T a = poly[1] / poly[0];
     T b = poly[2] / poly[0];
@@ -395,14 +417,34 @@ std::vector<std::pair<int, std::complex<T>>> solve_cubic(const Poly<T>& poly){
 }
 
 template<typename T>
-std::vector<std::pair<int, std::complex<T>>>  solve_quartic(Poly<T> poly)  {
+std::vector<std::pair<int, std::complex<T>>>  solve_cubic(Poly<T> poly)  {
     std::vector<std::pair<int, std::complex<T>>> roots;
+    T x[3];
+    int type = solveP3(x, poly[1]/poly[0], poly[2]/poly[0],  poly[3]/poly[0]);
+    switch (type) {
+    case 1:
+        roots.push_back({1, x[0]});
+        roots.push_back({1, std::complex<T>(x[1], x[2])});
+        roots.push_back({1, std::complex<T>(x[1], -x[2])});
+        break;
+    default:
+        roots.push_back({1, x[0]});
+        roots.push_back({1, x[1]});
+        roots.push_back({1, x[2]});
+        break;
+    }
+    return roots;
+}
+
+template<typename T>
+std::vector<std::pair<int, std::complex<T>>>  solve_quartic(Poly<T> poly)  {
+    std::vector<std::pair<int, std::complex<T>>> roots(4);
     std::vector<std::complex<T>> vec_root = solveP4(poly[1]/poly[0], 
                                                     poly[2]/poly[0], 
                                                     poly[3]/poly[0], 
                                                     poly[4]/poly[0]);
     for (int i = 0; i < 4; ++i) {
-        roots.push_back({1, vec_root[i]});
+        roots[i] = {1, vec_root[i]};
     }
     return roots;
 }
@@ -410,20 +452,18 @@ std::vector<std::pair<int, std::complex<T>>>  solve_quartic(Poly<T> poly)  {
 
 template<typename T>
 std::vector<std::pair<int, std::complex<T>>>  Poly<T>::solve(int type)  {
-    if (deg_ == 1){ // [2 1] -> [1 1/2]
+    switch (deg_) {
+    case 1:
         return {{1, std::complex<T>(-coef_[1]/coef_[0])}};
-    }
-    if (deg_ == 2){
+    case 2:
         return solve_quadratic(*this);
-    }
-    if (deg_ == 3){
+    case 3:
         return solve_cubic(*this);
-    }
-    if (deg_ == 4){
-        return solve_quartic(*this);
-    }
-    if (deg_ > 4){
+    // case 4:
+    //     return solve_quartic(*this);
+    default:
         return solve_numerical(*this, type);
+        break;
     }
     return {{1, 0}};
 }
@@ -756,4 +796,55 @@ Poly<std::complex<T>> make_complex_poly(const Poly<T>& poly) {
     for (int i = 0; i <= deg; ++i)
         p[i] = std::complex<T>{poly[i]};
     return p;
+}
+
+template <typename T>
+std::vector<std::complex<T>> frac_decomp_matrix(Poly<T> num, Poly<T> den,
+                                                std::vector<std::pair<int, std::complex<T>>>  roots) {
+    // Ax = b
+    size_t n = roots.size();
+    std::vector<std::complex<T>> res;
+
+    size_t num_deg = num.deg();
+    size_t den_deg = den.deg();
+
+    Poly<std::complex<T>> Q(den.deg(), std::complex<T>(0.0));
+    Poly<std::complex<T>> P(num.deg(), std::complex<T>(0.0));
+
+    for (int i = 0; i <= num_deg; ++i)
+        P[i] = std::complex<T>(num[i]);
+
+    for (int i = 0; i <= den_deg;++i)
+        Q[i] = std::complex<T>(den[i]);
+
+    Eigen::VectorX<std::complex<T>> b(Q.deg());
+    b.setZero();
+    for(int i =0; i <= P.deg(); ++i)
+        b(i) = P[P.deg()-i];
+
+    Eigen::MatrixX<std::complex<T>> matrix(Q.deg(), Q.deg());
+    matrix.setZero();
+
+    int ii = 0;
+    for (int i = 0; i < n; ++i) {
+        Poly<std::complex<T>> Q_temp = Q;
+        Poly<std::complex<T>> x_a {1, -roots[i].second};
+
+        for (int j=0; j < roots[i].first; ++j) {
+            Q_temp /= x_a;
+            size_t deg = Q_temp.deg();
+            for (int k=0; k <= deg; ++k) {
+                matrix(k, ii) = Q_temp[deg-k];
+            }
+            ++ii;
+        }
+    }
+    //std::cout << matrix << "\n";
+    Eigen::VectorX<std::complex<T>> x = matrix.colPivHouseholderQr().solve(b);
+
+    //std::cout << x << "\n";
+    for(int i =0; i < x.size(); ++i)
+        res.push_back(x(i));
+
+    return res;
 }
