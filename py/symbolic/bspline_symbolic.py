@@ -1,12 +1,14 @@
-import sys
-sys.path.append("..")
+# import sys
+# sys.path.append("..")
+
 import random
 import matplotlib.pyplot as plt
 import symengine as se
 
 from numpy import array, linspace
 
-from bspline.py.symbolic.bspline_basis import BsplineBasis
+from bspline_basis import BsplineBasis
+
 from base_spline import BaseSpline
 
 from deboor import *
@@ -145,19 +147,6 @@ class BsplineSymbolic(BaseSpline):
             else:
                 return self.create_diff_deboor()
 
-    # TODO
-    # def integrate(self, a, b):
-    #     import sympy as sp
-    #     x_sympy, y_sympy = self.convert_to_sympy()
-
-    #     # Calculate if x-points is non - decreasing sequence
-    #     if all([self.points[i][0] <= self.points[i+1][0] for i in range(self.n - 1)]):
-    #         print(pw_sympy.piecewise_integrate(t))
-    #     else:
-    #         print("For integrate points_x must be non-decreasing sequence")
-    #         return None
-
-
 def generate_points(n):
     return array([array([i, random.randint(-n,n)]) for i in range(n)])
 
@@ -165,8 +154,11 @@ def generate_points(n):
 if __name__ == "__main__":
     """Example creating Bspline using de Boor algorithm"""
     p = 3
-    points = generate_points(6)
+    points = [[1, 1],[2, 2], [3, 3],[4, 4]]
+
     #knots = list(range(len(points) + p + 1))
-    spline = BsplineSymbolic(p, points, core="rec", closed=False)
+    spline = BsplineSymbolic(p, points)
+
+    spline.basis.plot_file("basis.png")
     spline.plot_show()
     spline.print_latex()

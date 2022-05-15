@@ -64,6 +64,8 @@ struct NURBS2{
     std::vector<Rational<T>> coefs;
 
 public:
+    // NON-uniform KNOT VECTOR 
+    // NON-uniform weights
     NURBS2(int p_,
           std::vector<T>& knots_,
           std::vector<T>& weights_,
@@ -76,12 +78,13 @@ public:
         domain = {p, knots.size() - p - 1};
         ks = create_intervals(domain,knots);
         N_segments = ks.size() - 1;
-    
         create_coefs();
         polishing();
     }
 
+
     // UNIFORM KNOT VECTOR
+    // NON-uniform weights
     NURBS2(int p_,
           std::vector<T>& weights_,
           std::vector<Point<T>>& cv_) {
@@ -93,7 +96,24 @@ public:
         domain = {p, knots.size() - p - 1};
         ks = create_intervals(domain,knots);
         N_segments = ks.size() - 1;
+        create_coefs();
+        polishing();
+    }
 
+    // UNIFORM KNOT VECTOR
+    // UNIFORM weights
+    NURBS2(int p_,  
+            T w_start, 
+            T w_end,
+          std::vector<Point<T>>& cv_) {
+        p = p_;
+        cv = cv_;
+        weights = linspace<T>(w_start, w_end, cv.size());
+        knots = create_knots<T>(cv.size(), p);
+        dim = cv[0].dim;
+        domain = {p, knots.size() - p - 1};
+        ks = create_intervals(domain,knots);
+        N_segments = ks.size() - 1;
         create_coefs();
         polishing_uniform();
     }
@@ -103,33 +123,44 @@ public:
             coefs.push_back(de_boor_nurbs2(ks[i], ks[i+1], knots,weights, cv, p));
     }
 
-    void polishing() {
+    void polishing(T eps_ = 1e-15) {
         for (auto& frac: coefs){
-            frac.second.update_real();
+            frac.second.update_real(eps_);
             for (int d=0; d < dim; ++d){
-                frac.first[d].update_real();
+                frac.first[d].update_real(eps_);
             }
         }
     }
 
-    void polishing_uniform() {
+
+    void polishing2() {
+        for (auto& frac: coefs){
+            T temp = frac.second.normalize();
+            for (int d=0; d < dim; ++d){
+               frac.first[d] /= temp;
+            }
+        }
+    } 
+    
+    // TODO add like polishing / temp;
+    void polishing_uniform(T eps_ = 1e-15) {
         int len = coefs.size();
         if (len <= 2*(p-1)) {
-            polishing();
+            polishing(eps_);
         } else {
             for (int i = 0; i < p-1; ++i){
-                coefs[i].second.update_real();
-                coefs[len - i - 1].second.update_real();
+                coefs[i].second.update_real(eps_);
+                coefs[len - i - 1].second.update_real(eps_);
 
                 for (int d=0; d < dim; ++d){
-                    coefs[i].first[d].update_real();
-                    coefs[len-i-1].first[d].update_real();
+                    coefs[i].first[d].update_real(eps_);
+                    coefs[len-i-1].first[d].update_real(eps_);
                 }
             }
             for (int i = p-1; i < len-p+1; ++i) {
                 coefs[i].second.resize(1);
                 for (int d=0; d < dim; ++d){
-                    coefs[i].first[d].update_real();
+                    coefs[i].first[d].update_real(eps_);
                 }
             }
         } 
@@ -170,10 +201,18 @@ public:
         return points;
     }
 
+
+    void save_denominators(std::string path = "") {
+        std::ofstream out_den(path);
+        for (const Rational<T>& coef : coefs){
+            out_den << coef.second << "\n";
+        }
+    }
+
     void save_coefs(std::string path_dir = "") {
-        std::string path_x="coefs_num_x.out";
-        std::string path_y="coefs_num_y.out";
-        std::string den = "coefs_den.out";
+        std::string path_x="coefs2_num_x.out";
+        std::string path_y="coefs2_num_y.out";
+        std::string den = "coefs2_den.out";
 
         std::ofstream out_x(path_dir + path_x);
         std::ofstream out_y(path_dir + path_y);

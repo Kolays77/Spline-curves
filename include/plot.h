@@ -73,9 +73,13 @@ void plot_curve_( std::vector<T>& x,
                 const std::string& legend="") {
     
     std::map<std::string, std::string> keywords_points;
-    if (legend != "") 
-        plt::named_plot(legend, x, y);
-    plt::plot(x, y);
+    if (legend == "") {
+        plt::plot(x, y);
+    } else {
+        keywords_points["label"] = legend;
+        plt::plot(x, y, keywords_points);
+
+    }
 }
 
 
@@ -169,6 +173,20 @@ void plot_errors(std::vector<int> xs,
 }
 
 template<typename T>
+void plot_errors_scatter(std::vector<int> xs, 
+                std::vector<T> errors,  
+                const std::string& out="plot.png",
+                const std::string& title="", 
+                const std::string& legend="") {
+    set_figure(title); 
+    plot_errors_(xs, errors, legend);
+    plt::legend();
+    plt::save(out, 300);
+    plt::close();  
+}
+
+
+template<typename T>
 void plot_errors( std::vector<T> errors,  
                 const std::string& out="plot.png",
                 const std::string& title="",
@@ -185,6 +203,7 @@ void plot_errors( std::vector<T> errors,
     plt::save(out, 300);
     plt::close();  
 }
+
 
 
 template<typename T>

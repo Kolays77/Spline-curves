@@ -11,9 +11,11 @@ void test(int p, int n) {
     std::vector<T> weights = linspace<T>(T(1.0), T(5.0), cv.size());
     std::vector<T> knots = create_knots<T>(n, p);
     std::vector<Point<T>> points1 = create_curve(p, knots, weights, cv, N_plot);
+    std::cout << points1.size();
     
     NURBS<T> nurbs_curve(p, weights, cv);
     std::vector<Point<T>> points2 = nurbs_curve.get_points(N_plot);
+    std::cout << points2.size();
     
     plot_curve_(points1, "Analytic NURBS");
     plot_curve(cv, points2, "num_nurbs.png", "Curve comparison", "Numerical NURBS");

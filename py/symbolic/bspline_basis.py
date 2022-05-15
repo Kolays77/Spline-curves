@@ -2,6 +2,7 @@ import functools
 import symengine as se
 import matplotlib.pyplot as plt
 from numpy import array, linspace
+import matplotlib as mpl
 
 t = se.symbols("t") 
 
@@ -75,7 +76,7 @@ class BsplineBasis:
     def plot_(self, title=None, N=1000):
         ts = linspace(self.knots[0], self.knots[-1], N)
         for i, b in enumerate(self.basis):
-            plt.plot(ts, se.Lambdify(t, b, backend="llvm")(ts), label=f"B({i}{self.p})")
+            plt.plot(ts, se.Lambdify(t, b, backend="llvm")(ts), label=f"$B_" + "{" f"{i}p" + "}$")
         if title != None:
             plt.title(title)
         plt.legend()
@@ -88,3 +89,12 @@ class BsplineBasis:
     def plot_show(self,title=None, N=1000):
         self.plot_(title,N)
         plt.show()
+
+
+if __name__ == "__main__":
+    # n = 4, p = 3, m = 8
+    mpl.rc('text', usetex = True)
+
+    knots = [0, 1, 2, 3, 4, 5, 6, 7]    
+    basis_obj = BsplineBasis(3, knots)
+    basis_obj.plot_file("basis.png")

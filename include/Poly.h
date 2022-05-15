@@ -53,14 +53,14 @@ public:
     T integral(T from, T to) const;
 
     void update();
-    void update_real();
+    void update_real(T eps_);
     void resize(int deg);
 
     T normalize();
 
     T eval(const T& x) const ;
 
-    std::complex<T> At(const std::complex<T> & x) const;
+    std::complex<T> At_complex(const std::complex<T> & x) const;
     T At(const T & x) const;
 
     T At2(const T & x) const; //fma only for double
@@ -264,7 +264,7 @@ inline T Poly<T> ::At(const T & x) const{
 }
 
 template < typename T >
-std::complex<T> Poly<T> ::At(const std::complex<T> & x) const{
+std::complex<T> Poly<T> ::At_complex(const std::complex<T> & x) const{
     Poly<std::complex<T>> poly_complex = make_complex_poly(*this);
     std::complex<T> b = poly_complex[0];
     for (int d = 1; d <= deg_; ++d) {
@@ -603,9 +603,9 @@ void Poly<T>::update() {
 }
 
 template<typename T>
-void Poly<T>::update_real() {
+void Poly<T>::update_real(T eps_) {
     size_t i = 0;
-    while(std::abs(coef_[i]) < 1e-8 && i < deg_) {
+    while(std::abs(coef_[i]) < eps_ && i < deg_) {
         ++i;
     }
     if (i == deg_+1) {

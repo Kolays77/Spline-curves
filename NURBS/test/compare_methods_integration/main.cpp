@@ -18,7 +18,9 @@ void compare_integration(int p, int N_end) {
         std::cout << N << "\n";
         vec_N.push_back(N);
         std::vector<Point<T>> cv = generate_points_sorted<T>(N);
-        std::vector<T> weights = linspace<T>(T(0.00001), T(10.0), N);
+        //std::vector<T> weights = linspace<T>(T(1), T(2), N);
+        std::vector<T> weights = generate_vector<T>(N, T(0.5), T(1.0));
+        
         NURBS<T> NURBS(p, weights,cv);
         std::complex<T> int1 = NURBS.analytic_integral1(1);
         std::complex<T> int2 = NURBS.analytic_integral2(1);
@@ -34,7 +36,7 @@ void compare_integration(int p, int N_end) {
     
     plot_errors_(vec_N, vec_error1, "Новый метод");
     plot_errors(vec_N, vec_error2, 
-                "compare_int_methods_" + std::to_string(p) + ".png", "Сравнение методов интегрирования. Степень " + std::to_string(p), 
+                "compare_int_methods_" + std::to_string(p) + ".png", " ", 
                 "Старый метод");
     PLOT_END();
 }   

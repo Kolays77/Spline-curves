@@ -1,0 +1,4 @@
+compile: main.cpp
+	g++ main.cpp  -I/usr/include/python3.10  -lpython3.10 -o main.out -O3 
+clean:
+	rm *.out *.png 1/* 2/* 3/* 4/*

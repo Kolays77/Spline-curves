@@ -15,20 +15,30 @@ struct Point{
 
     Point();
     explicit Point(std::vector<T> vec);
+    Point(std::initializer_list<T> list); // delete ?
+
     explicit Point(int dim_);
     T operator[](size_t index) const;
     T& operator[](size_t index);
     Point& operator = (const Point & rhs);
     Point& operator*=(const T& rhs);
+    Point& operator/=(const T& rhs);
     Point operator/(T rhs);
     bool operator <(const Point& rhs);
 };
+
+template<typename T>
+Point<T>::Point(std::initializer_list<T> list) { // delete ?
+    dim = list.size();
+    arr = std::vector<T>(list);
+}
 
 template<typename T>
 Point<T>::Point(std::vector<T> vec) {
     dim = vec.size();
     arr = vec;
 }
+
 
 template<typename T>
 T Point<T>::operator[](size_t index) const {
@@ -67,12 +77,28 @@ Point<T> &Point<T>::operator*=(const T &rhs) {
 }
 
 template<typename T>
-Point<T> &Point<T>::operator=(const Point &rhs) {
+Point<T> &Point<T>::operator/=(const T &rhs) {
+    for (T& p : arr){
+        p /= rhs;
+    }
+    return *this;
+}
+
+template<typename T>
+Point<T> & Point<T>::operator=(const Point &rhs) {
     dim = rhs.dim;
     arr = rhs.arr;
     return *this;
 }
 
+template<typename T>
+Point<T>  operator + (const Point<T>& point1, const Point<T>& point2) {
+    Point<T> temp = point1;
+    for (int i = 0; i < temp.dim; ++i) {
+        temp[i] += point2[i];
+    }
+    return temp;
+}
 
 template<typename T>
 Point<T> operator * (const Point<T>& point, T value) {
