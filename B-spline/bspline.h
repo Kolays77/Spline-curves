@@ -3,6 +3,15 @@
 #include "../include/tools.h"
 #include "../include/integral.h"
 
+
+
+//Модифицированный алгоритм де Бура для построения многочленов P_x, P_y, определяющих сегмент кривой под номером k.
+//Параметры:
+//    k - номер сегмента;
+//    knots - вектор узлов;
+//    points - вектор контрольных точек (CV) на плоскости;
+//    p - степень кривой.
+
 template<typename T>
 Point<Poly<T>> de_boor(int k,
                      std::vector<T>& knots,
@@ -32,32 +41,45 @@ Point<Poly<T>> de_boor(int k,
     return d[p];
 }
 
+
+
+//    Класс B-сплайн кривой, в конструкторе которого строятся  многочлены для каждого сегмента кривой.
+//    Параметры:
+//       p - степень кривой;
+//       knots - вектор узлов;
+//       cv - вектор контрольных точек. 
+
 template<typename T>
 struct Bspline {
-    int p;
-    int dim;
+    int p; // Степень кривой.
+    int dim; // Размерность пространства. Для плоскости dim=2.
+    int N_segments; // Количество сегментов
+
     std::vector<T> knots;
     std::vector<Point<T>> cv;
-    std::pair<int, int> domain;
-    std::vector<int> ks;
+    std::pair<int, int> domain; // интервал изменения параметра t для кривой.
+    std::vector<int> ks; 
     std::vector<Point<Poly<T>>> coefs;
+
 public:
     Bspline(int p_,
             std::vector<T> &knots_,
             std::vector<Point<T>> &cv_) {
-
         p = p_;
         knots = knots_;
         cv = cv_;
         dim = cv[0].dim;
         domain = {p, knots.size() - p - 1};
         ks = create_intervals(domain, knots);
+        N_segments = ks.size() - 1;
         create_coefs();
     }
 
     void create_coefs() {
-        for (int k: ks)
-            coefs.push_back(de_boor(k, knots, cv, p));
+        for (int i = 0; i < N_segments; ++i) {
+            coefs.push_back(de_boor(ks[i], knots, cv, p));
+        }
+        
         for (auto &coef: coefs) {
             for (int d = 0; d < dim; ++d) {
                 coef[d].update_real();
@@ -65,27 +87,26 @@ public:
         }
     }
 
+    // Метод получения N точек на кривой
     std::vector<Point<T>> get_points(int N) {
         std::vector<Point<T>> points(N, Point<T>(dim));
-        std::vector<T> ts = linspace(knots[domain.first],
-                                     knots[domain.second], N);
+        std::vector<T> ts = linspace(knots[domain.first], knots[domain.second], N);
         T t = knots[domain.first];
         int i = 0;
-        int j = 0;
-        for (int k: ks) {
-            while (t <= knots[k + 1] && i < N) {
-                for (int d = 0; d < dim; ++d) {
+        for(int j = 0; j < N_segments; ++j){
+            while (t <= knots[ks[j+1]] && i < N){
+                for (int d = 0; d < dim; ++d){
                     points[i][d] = coefs[j][d].At(t);
                 }
-                ++i;
-                t = ts[i];
+                ++i; t = ts[i];
             }
-            ++j;
         }
-        return points;
+        return  points;
     }
 
-
+    // Метод нахождения производной по икс B-сплайн кривой.
+    // Результат:
+    // N - штук значений dy/dx
     std::vector<T> get_dy_dx_points(int N) {
         std::vector<T> points(N, 0.0);
         std::vector<T> ts = linspace(knots[domain.first],
@@ -125,6 +146,7 @@ public:
         return knots;
     }
 
+    // Сохранение коэффициентов многочленов для каждого сегмента в файл. 
     void save_coefs() {
         if (coefs[0].dim == 1) {
             std::ofstream out("coefs.out");
@@ -153,49 +175,21 @@ public:
         }
     }
 
+    // Метод нахождения интеграла аналитически (непосредственно).
     T analytic_integral() {
         T sum = 0.0;
-        int j = 0;
-        for (int k: ks) {
-            sum += (coefs[j][1] * coefs[j][0].der()).integral(knots[k], knots[k + 1]);
-            ++j;
+        for (int i = 0; i < N_segments; ++i) { 
+            sum += (coefs[i][1] * coefs[i][0].der()).integral(knots[ks[i]], knots[ks[i+1]]);
         }
         return sum;
     }
-
+    
+    // Метод нахождения интеграла численно. Используется numerical_integral из include/integral.h
     T integral() {
         T sum = 0.0;
-        int j = 0;
-        for (int k: ks) {
-            sum += numerical_integral(coefs[j][1] * coefs[j][0].der(), knots[k], knots[k + 1]);
-            ++j;
-        }
-        return sum;
-    }
-
-    T length_curve() {
-        T sum = 0.0;
-        int i = 0;
-        for (auto k: ks) {
-            T a = knots[k];
-            T b = knots[k + 1];
-            sum += numerical_integral_length(coefs[i][0], coefs[i][1], a, b);
-            ++i;
+        for (int i = 0; i < N_segments; ++i) { 
+            sum += numerical_integral(coefs[i][1] * coefs[i][0].der(), knots[ks[i]], knots[ks[i+1]]);
         }
         return sum;
     }
 };
-
-
-template<typename T>
-void test_dy_dx(){
-    auto cv = load_points<T>("points.in");
-    for (int p=2; p < cv.size()-2; ++p) {
-        std::vector<T> knots = create_knots<T>(cv.size(), p);
-        Bspline<T> bspline(p, knots, cv);
-        std::vector<T> dy_dx = bspline.get_dy_dx_points(1000);
-        save_vector(dy_dx,  "out/dy_dx_" + std::to_string(p) + ".out");
-    }
-}
-
-

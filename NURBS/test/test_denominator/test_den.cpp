@@ -31,13 +31,11 @@ void test(int p) {
         
         std::vector<Point<T>> cv = generate_points_sorted<T>(n);
         //std::vector<T> weights = linspace(T(1.0), T(2.0), cv.size()); // знаменатель не зависит от вектора узлов
-        std::vector<T> weights = generate_vector<T>(cv.size(), T(0.5), T(10.0)); // знаменатель не зависит от вектора узлов
-    
-        NURBS<T>  nurbs1(p, weights, cv);    
-        NURBS2<T> nurbs2(p, weights, cv);
-
-        //nurbs1.save_denominators("src/den_nurbs1_" + std::to_string(n));
-        //nurbs2.save_denominators("src/den_nurbs2_" + std::to_string(n));
+        std::vector<T> weights = generate_vector<T>(cv.size(), T(0.5), T(1.0)); // знаменатель не зависит от вектора узлов
+    	std::vector<T> knots = generate_clamped_random_knot_vector<T>(n, p);
+        
+        NURBS<T>  nurbs1(p, knots, weights, cv);    
+        NURBS2<T> nurbs2(p, knots, weights, cv);
 
         T max_error = 0.0;
         int n_c = nurbs1.coefs.size();
@@ -67,7 +65,6 @@ void test(int p) {
     save_vector_errors<T>(NS, errors2, "errors_nurbs2_" + std::to_string(p) + ".out");
     
     plot_errors_(NS, errors1, "Стандартная параметризация");
-    //plot_errors(NS, errors2, "compare_errors_den_" + std::to_string(p) + ".png", "Максимальная ошибка корня знаменателя кривых", "nurbs2");
     plot_errors(NS, errors2, "plot" +  std::to_string(p) + ".png", "Максимальная ошибка корня знаменателя кривых", "Параметризация [0, 1]");
     
     PLOT_END();

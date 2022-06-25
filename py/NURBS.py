@@ -74,7 +74,6 @@ def test_circle():
     x1, y1 = curve.get_curve_points(N).T
     x2, y2 = np.cos(ts), np.sin(ts)
     
-    
     save_vector(y1, "y1.out")
     save_vector(y2, "y2.out")
     

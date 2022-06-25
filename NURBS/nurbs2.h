@@ -4,6 +4,17 @@
 #include "../include/tools.h"
 #include "../include/integral.h"
 
+
+/*
+Модифицированный алгоритм де Бура для построения (получение коэффициентов) рациональных функций (P_x/Q(t), P_y/Q(t)), 
+определяющих k-ый сегмент NURBS кривой. Посегментная параметризация 
+Параметры:
+    k1, k2 - индексы начала и конца интервала изменения параметра t.
+    knots - вектор узлов;
+    points - вектор контрольных точек (CV) на плоскости;
+    p - степень кривой.
+*/
+
 template<typename T>
 Rational<T> de_boor_nurbs2(int k1, int k2,
                           std::vector<T>& knots,
@@ -46,10 +57,16 @@ Rational<T> de_boor_nurbs2(int k1, int k2,
 }
 
 
-template<typename T>
-using Rational = std::pair<Point<Poly<T>>, Poly<T>>;
-
-
+/*
+    Класс NURBS кривой, в конструкторах которого строится аналитические выражение(многочлены) С(t) = (P_x/Q(t), P_y/Q(t))
+    для каждого сегмента кривой.
+    Посегметная параметризация (Параметризация [0, 1]). 
+    Параметры:
+        p - степень кривой;
+        knots - вектор узлов;
+        cv - вектор контрольных точек; 
+        weights - веса.
+*/
 template<typename T>
 struct NURBS2{
     int p;
@@ -64,8 +81,10 @@ struct NURBS2{
     std::vector<Rational<T>> coefs;
 
 public:
-    // NON-uniform KNOT VECTOR 
-    // NON-uniform weights
+
+    // Конструктор для построение NURBS кривой.
+    // Условие: неравномерный вектор узлов (NON-uniform KNOT VECTOR)
+    // неравномерный вектор весов (NON-uniform weights)
     NURBS2(int p_,
           std::vector<T>& knots_,
           std::vector<T>& weights_,
@@ -79,12 +98,13 @@ public:
         ks = create_intervals(domain,knots);
         N_segments = ks.size() - 1;
         create_coefs();
-        polishing();
+        // polishing();
     }
 
 
-    // UNIFORM KNOT VECTOR
-    // NON-uniform weights
+    // Конструктор для построение NURBS кривой. 
+    // Условие: равномерный вектор узлов (UNIFORM KNOT VECTOR)
+    // неравномерный вектор весов (NON-uniform weights)
     NURBS2(int p_,
           std::vector<T>& weights_,
           std::vector<Point<T>>& cv_) {
@@ -97,11 +117,12 @@ public:
         ks = create_intervals(domain,knots);
         N_segments = ks.size() - 1;
         create_coefs();
-        polishing();
+        // polishing();
     }
 
-    // UNIFORM KNOT VECTOR
-    // UNIFORM weights
+    // Конструктор для построение NURBS кривой. 
+    // Условие: равномерный вектор узлов (UNIFORM KNOT VECTOR)
+    // равномерный вектор весов (UNIFORM weights)
     NURBS2(int p_,  
             T w_start, 
             T w_end,
@@ -115,15 +136,36 @@ public:
         ks = create_intervals(domain,knots);
         N_segments = ks.size() - 1;
         create_coefs();
-        polishing_uniform();
+        // polishing_uniform();
     }
 
+    // Конструктор для построение NURBS кривой. 
+    // Условие: неравномерный вектор узлов (NON UNIFORM KNOT VECTOR)
+    // равномерный вектор весов (UNIFORM weights)
+    NURBS2(int p_,   
+            std::vector<T>& knots_,
+            T w_start, 
+            T w_end,
+          std::vector<Point<T>>& cv_) {
+        p = p_;
+        cv = cv_;
+        weights = linspace<T>(w_start, w_end, cv.size());
+        knots = knots_;
+        dim = cv[0].dim;
+        domain = {p, knots.size() - p - 1};
+        ks = create_intervals(domain,knots);
+        N_segments = ks.size() - 1;
+        create_coefs();
+        // polishing();
+    }
+    
     void create_coefs(){  
         for (int i = 0; i < N_segments; ++i) 
             coefs.push_back(de_boor_nurbs2(ks[i], ks[i+1], knots,weights, cv, p));
     }
 
-    void polishing(T eps_ = 1e-15) {
+    // Метод удаление старших коэффициентов при выполнения условия A < eps
+    void polishing(T eps_ = 1e-11) {
         for (auto& frac: coefs){
             frac.second.update_real(eps_);
             for (int d=0; d < dim; ++d){
@@ -132,7 +174,7 @@ public:
         }
     }
 
-
+    // Нормализация знаменателя Q(t)
     void polishing2() {
         for (auto& frac: coefs){
             T temp = frac.second.normalize();
@@ -142,16 +184,14 @@ public:
         }
     } 
     
-    // TODO add like polishing / temp;
-    void polishing_uniform(T eps_ = 1e-15) {
+    void polishing_uniform(T eps_ = 1e-11) {
         int len = coefs.size();
         if (len <= 2*(p-1)) {
-            polishing(eps_);
+            polishing();
         } else {
             for (int i = 0; i < p-1; ++i){
                 coefs[i].second.update_real(eps_);
                 coefs[len - i - 1].second.update_real(eps_);
-
                 for (int d=0; d < dim; ++d){
                     coefs[i].first[d].update_real(eps_);
                     coefs[len-i-1].first[d].update_real(eps_);
@@ -166,7 +206,8 @@ public:
         } 
     }
 
-    // ok
+
+    // Метод получения N точек на кривой
     std::vector<Point<T>> get_points(int N) {
         std::vector<T> ts = linspace(T(0.0), T(1.0), N / N_segments);        
         std::vector<Point<T>> points(ts.size() * N_segments, Point<T>(dim));
@@ -180,6 +221,9 @@ public:
         return  points;
     }
 
+    // Метод нахождения производной по икс NURBS кривой.
+    // Результат:
+    // N - штук значений dy/dx
     std::vector<T> get_dy_dx_points(int N) {
         std::vector<T> points(N, 0.0);
         std::vector<T> ts = linspace(knots[domain.first],
@@ -201,14 +245,14 @@ public:
         return points;
     }
 
-
+    // Сохранение коэффициентов знаменателя для каждого сегмента в файл. 
     void save_denominators(std::string path = "") {
         std::ofstream out_den(path);
         for (const Rational<T>& coef : coefs){
             out_den << coef.second << "\n";
         }
     }
-
+    // Сохранение коэффициентов многочленов для каждого сегмента в файл. 
     void save_coefs(std::string path_dir = "") {
         std::string path_x="coefs2_num_x.out";
         std::string path_y="coefs2_num_y.out";
@@ -218,13 +262,14 @@ public:
         std::ofstream out_y(path_dir + path_y);
         std::ofstream out_den(path_dir + den);
 
-        for (const Rational<T>& coef : coefs){
-            out_x << coef.first[0] << "\n";
-            out_y << coef.first[1] << "\n";
-            out_den << coef.second << "\n";
+        for (int i = 0; i < N_segments; ++i) {
+            out_x << coefs[i].first[0] << "\n";
+            out_y << coefs[i].first[1] << "\n";
+            out_den << "[" << knots[ks[i]] << ":" << knots[ks[i+1]] << "]" << coefs[i].second << "\n";
         }
     }
 
+    // Численный интеграл. Квадратура Гаусса-Лежандра
     T numerical_integral() {
         static const std::vector<long double> ps = POINTS;
         static const std::vector<long double> ws = WEIGHTS;
@@ -252,7 +297,12 @@ public:
         return sum;
     }
 
+    // Аналитический интеграл (Алгоритм 2)
+    // type -- метод факторизации знаменателя Q(t)
+    //      1 - с помощью вспомогательной матрицы
+    //      2 - метод Лаггера 
     std::complex<T> analytic_integral1(int type = 1, T t0=0.0, T t1=1.0) {
+        polishing2();
         std::complex<T> sum = 0.0;
     
         std::complex<T> left_sum = 0.0;
@@ -266,14 +316,6 @@ public:
             Poly<T> p_x, p_x_der, p_y, den, num;
             Poly<T> temp;
 
-       
-            // TODO
-            // if (from > t1) break; 
-            // if (to < t0) continue;
-            // from = from < t0 ? t0 : from;
-            // to = to > t1 ? t1 : to; 
-
-
             den = coefs[i].second;            
             p_x = coefs[i].first[0];
             p_y = coefs[i].first[1];
@@ -286,22 +328,18 @@ public:
                 vec_root[j] = roots[j].second;
             }
             std::complex<T> temp_sum = 0.0;
-            
-            std::complex<T> norm_den = den.normalize();
-            
-            norm_den *= norm_den;         
+                  
             auto div1 = p_y / den;
             auto div2 = p_x_der / den;
             
             Poly<T> P_12 = div1[0] * div2[0];
-            temp_sum +=  P_12.integral(from, to) / norm_den;
+            temp_sum +=  P_12.integral(from, to) ;
             num = div1[0] * div2[1] + div2[0] * div1[1];
             auto div3 = num / den;    
-            temp_sum += div3[0].integral(from, to) / norm_den;
-            temp_sum += integral(div3[1], vec_root, from, to) / norm_den;
-            temp_sum += integral(div1[1], div2[1], vec_root, from, to) / norm_den;
+            temp_sum += div3[0].integral(from, to) ;
+            temp_sum += integral(div3[1], vec_root, from, to) ;
+            temp_sum += integral(div1[1], div2[1], vec_root, from, to) ;
             left_sum += temp_sum;
-
 
             temp_sum = 0.0;
             div2 =  p_x / den;
@@ -313,13 +351,13 @@ public:
             for (int j = 0; j < n_roots; ++j) {
                 Poly<std::complex<T>> divider(std::vector<std::complex<T>>{1.0, -vec_root[j]});
                 auto div3_complex = P_12_complex / divider;    
-                temp_sum +=  integral_type_1(div3_complex[1][0], vec_root[j], 1, from, to) / norm_den;
-                temp_sum += div3_complex[0].integral(from, to) / norm_den;
+                temp_sum +=  integral_type_1(div3_complex[1][0], vec_root[j], 1, from, to) ;
+                temp_sum += div3_complex[0].integral(from, to) ;
                 auto div5 = P4 / divider;
-                temp_sum += div5[0].integral(from, to) / norm_den;
-                temp_sum += integral_type_1(div5[1][0], vec_root[j], 1, from, to) / norm_den;
-                temp_sum += integral(div4[1], vec_root, j, from, to) / norm_den;         
-                temp_sum += integral(div1[1], div2[1], vec_root, j, from, to) / norm_den;   
+                temp_sum += div5[0].integral(from, to) ;
+                temp_sum += integral_type_1(div5[1][0], vec_root[j], 1, from, to) ;
+                temp_sum += integral(div4[1], vec_root, j, from, to) ;         
+                temp_sum += integral(div1[1], div2[1], vec_root, j, from, to) ;   
             }
             right_sum += temp_sum;
         }
@@ -327,7 +365,10 @@ public:
         return sum;
     }
 
-    //using second method
+    //Аналитический интеграл (Алгоритм 1)
+    // type -- метод факторизации знаменателя Q(t)
+    //      1 - с помощью вспомогательной матрицы
+    //      2 - метод Лаггера 
     std::complex<T> analytic_integral2(int type = 1) {
         T from, to;
         std::complex<T> sum = 0.0;

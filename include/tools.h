@@ -33,6 +33,20 @@ std::vector<T> linspace(T start,
     return linspaced;
 }
 
+
+template<typename T>
+std::vector<T> arange(T start, T end, T delta) {
+    int i = 0;
+    std::vector<T> res;
+    T temp = start;
+    while (temp <= end) {
+        res.push_back(temp);
+        temp += delta;
+    }
+    return temp;
+}
+
+
 template<typename T>
 bool is_complex(std::complex<T>& value, const T& EPS) {
     if (value.imag()  > EPS) 
@@ -84,6 +98,7 @@ std::vector<Point<T>> generate_points(int n, T x0 = 0.0, T x1 = 1.0, T y0 = 0.0,
 }
 
 
+//(rand(), rand()) <  (rand(), rand()) for x
 template<typename T>
 std::vector<Point<T>> generate_points_sorted(int n, T x0 = 0.0, T x1 = 1.0, T y0 = 0.0, T y1 = 1.0) {
     std::vector<Point<T>> res = generate_points(n, x0, x1, y0, y1);
@@ -91,6 +106,8 @@ std::vector<Point<T>> generate_points_sorted(int n, T x0 = 0.0, T x1 = 1.0, T y0
     return res;
 }
 
+// delta x == 1.0
+// (0, rand()), (1, rand())
 template<typename T>
 std::vector<Point<T>> generate_points_sorted2(int n, T y0 = 0.0, T y1 = 1.0) {
     std::vector<Point<T>> res(n, Point<T>{std::vector<T>{0.0, 0.0}});
@@ -118,24 +135,16 @@ std::vector<T> create_knots(int n, int p){
 template<typename T>
 std::vector<T> create_uniform_knot_vector(int n, int p){
     std::vector<T> res(n + p + 1, 0.0);
-    for (int i = 0; i < n + p + 1; ++i) res[i] = T(i) / (n + p + 1);
+    for (int i = 0; i < n + p + 1; ++i) res[i] = T(i) / (n + p);
     return res;
 }
 
 template<typename T>
 std::vector<T> generate_clamped_random_knot_vector(int n, int p){
-    T eps = 1.0 / (n + p) / 10.0;
     std::vector<T> res = generate_vector<T>(n + p + 1, 0.0, 1.0);
     std::sort(res.begin(), res.end());
     for (int i = 0; i <= p; ++i) res[i] = 0.0;
     for (int i = 0; i <= p; ++i) res[n + p - i] = 1.0;
-
-    for (int i = p + 1; i < n - 1; ++i) {
-        if (std::abs(res[i] - res[i-1]) < eps) {
-            res[i] = res[i+1];
-        }
-    } 
-
     return res;
 }
 
@@ -156,10 +165,12 @@ std::vector<T> ones(size_t n) {
 template<typename T>
 std::vector<int> create_intervals(std::pair<int, int> domain, std::vector<T> knots){
     std::vector<int> intervals;
+    T eps = 0.0001;
+
     for (int i = domain.first; i <= domain.second; ++i) 
-        if (knots[i] != knots[i+1])
+        if (std::abs(knots[i] - knots[i+1]) > eps)
             intervals.push_back(i);
-    
+
     intervals.push_back(domain.second); // add first 1.0
     return intervals;
 }
@@ -167,14 +178,15 @@ std::vector<int> create_intervals(std::pair<int, int> domain, std::vector<T> kno
 template<typename T>
 T compare_points(const std::vector<Point<T>>& points1,
                  const std::vector<Point<T>>& points2) {
-    T res = 0.0;
+    T max = -1.0;
     if (points1.size() != points2.size()) {
         throw std::logic_error("points1.size() != points2.size()");
     }
     for (int i = 0; i < points1.size(); ++i) {
-        res += dist(points1[i], points2[i]);
+        T temp = dist(points1[i], points2[i]);
+        max = temp > max ? temp : max;
     }
-    return res;
+    return max;
 }
 
 template<typename T>

@@ -5,21 +5,18 @@
 
 template <typename T>
 void test_nurbs_integrals(int p, int n ) {
-    std::vector<Point<T>> cv = generate_points_sorted2<T>(n, -100.0, 100.0);        
-
+    std::vector<Point<T>> cv = generate_points_sorted<T>(n);        
     save_points("cv.out", cv);
-    std::vector<T> weights = linspace(T(1.0), T(2.0), cv.size());
     
     std::complex<T> int0_1;
     std::complex<T> int0_2;
     
     std::complex<T> int1;
     std::complex<T> int2;
-    
-    std::vector<T> knots = generate_clamped_random_knot_vector<T>(n, p);
-    NURBS<T> nurbs1(p , knots, weights, cv);
-    NURBS2<T> nurbs2(p, knots, weights, cv);
-    print(knots);
+
+    // FULL UNIFORM    
+    NURBS<T>  nurbs1(p, 1.0, 2.0, cv);
+    NURBS2<T> nurbs2(p, 1.0, 2.0, cv);
     
     nurbs1.save_coefs();
     nurbs2.save_coefs();
@@ -57,15 +54,22 @@ void test_nurbs_integrals(int p, int n ) {
     std::vector<Point<T>> cv2;
     int m = nurbs1.knots.size();
 
-    T new_knot = (nurbs1.knots[m / 2 + 1] + nurbs1.knots[m / 2]) / 2.0 ;
-    split_curve_new_knot<T>(p, nurbs1.knots, cv, weights, new_knot, knots1, knots2, cv1, cv2, weights1, weights2);          
+    //T new_knot = (nurbs1.knots[m / 2 + 1] + nurbs1.knots[m / 2]) / 2.0 ;
+    T new_knot = 0.5;
+    split_curve_new_knot<T>(p, nurbs1.knots, cv, nurbs1.weights, new_knot, knots1, knots2, cv1, cv2, weights1, weights2);          
+    
+    
     NURBS2<T> nurbs_part1(p, knots1, weights1, cv1);
     NURBS2<T> nurbs_part2(p, knots2, weights2, cv2);
 
 
     save_vector(nurbs_part1.cv, "part1/cv.out");
     save_vector(nurbs_part2.cv, "part2/cv.out");
-     
+
+    save_vector(knots1, "part1/knots.out");
+    save_vector(knots2, "part2/knots.out");
+
+
     nurbs_part1.save_coefs("part1/");
     nurbs_part2.save_coefs("part2/");
 

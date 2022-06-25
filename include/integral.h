@@ -3,6 +3,7 @@
 
 long double EPS = 1e-12;
 
+// Для удобства представляется функции С(t) = (P_x/Q(t), P_y/Q(t))
 template<typename T>
 using Rational = std::pair<Point<Poly<T>>, Poly<T>>;
 
@@ -101,7 +102,6 @@ std::complex<T> integral_triple_roots(std::complex<T> compl_num,
     std::complex<T> A1 = compl_num / (a1 - a2) / ( a1 - a3);
     std::complex<T> A2 = compl_num / (a2 - a1) / ( a2 - a3);
     std::complex<T> A3 = compl_num / (a3 - a1) / ( a3 - a2);
-
     sum += integral_type_1(A1, a1, 1, from, to);
     sum += integral_type_1(A2, a2, 1, from, to);
     sum += integral_type_1(A3, a3, 1, from, to);
@@ -119,9 +119,6 @@ std::complex<T> integral_type_7(std::complex<T> compl_num,
     std::complex<T> B(to);
     std::vector<std::complex<T>> res = decomp(a , b);
     return  compl_num * (integral_type_1(res[0], a, 1, from, to) + integral_type_1(res[1], b, 1, from, to));
-
-    //return compl_num / (a-b) * (std::log((B-a)/(B-b)) - std::log((A-a)/(A-b))) ;
-
 }
 
 // integral A / ((x-a)(x-b)^2)
@@ -204,7 +201,6 @@ std::complex<T> integral(Poly<T>& poly,
 
 // integral P1*P2 / Q^2 / (x-a_k)
 // where Q = (x-a1)(x-a2) ... (x-a_m)) / (x-a_k)
-
 template<typename T>
 std::complex<T> integral(Poly<T>& poly1, Poly<T>& poly2,
                          std::vector<std::complex<T>>& vec_root, int k, T from, T to) {
@@ -243,7 +239,6 @@ std::complex<T> integral(Poly<T>& poly1, Poly<T>& poly2,
 
 
 // ========== NUMERICAL INTEGRAL METHODS ========== //
-
 const std::vector<long double> POINTS({-0.9997137267734413,
                                        -0.9984919506395958,
                                         -0.9962951347331251,
@@ -347,19 +342,18 @@ const std::vector<long double> POINTS({-0.9997137267734413,
                                       });
 
 
-const std::vector<long double> WEIGHTS({
-                                               0.0007346344905008809,
-                                               0.001709392653517807,
-                                               0.002683925371554019,
-                                               0.003655961201327216,
-                                               0.004624450063421818,
-                                               0.005588428003865117,
-                                               0.00654694845084515,
-                                               0.007499073255464816,
-                                               0.008443871469668721,
-                                               0.009380419653694542,
-                                               0.01030780257486916,
-                                               0.01122511402318622,
+const std::vector<long double> WEIGHTS({0.0007346344905008809,
+                                            0.001709392653517807,
+                                            0.002683925371554019,
+                                            0.003655961201327216,
+                                            0.004624450063421818,
+                                            0.005588428003865117,
+                                            0.00654694845084515,
+                                            0.007499073255464816,
+                                            0.008443871469668721,
+                                            0.009380419653694542,
+                                            0.01030780257486916,
+                                            0.01122511402318622,
                                                0.012131457662979251,
                                                0.013025947892971715,
                                                0.01390771070371885,
@@ -452,8 +446,6 @@ const std::vector<long double> WEIGHTS({
 
 template<typename T>
 T numerical_integral(const Poly<T>& poly, T A, T B) {
-    // Legendre's quadrature. Need integrate_points.in, integrate_weights.in
-    // https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature
     auto points = POINTS;
     auto weights = WEIGHTS;
     int n = points.size();
@@ -467,8 +459,6 @@ T numerical_integral(const Poly<T>& poly, T A, T B) {
 // Length of the parametric curve
 template<typename T>
 T numerical_integral_length(const Poly<T>& x, const Poly<T>& y, T A, T B) {
-    // Legendre's quadrature. Need integrate_points.txt, integrate_weights.txt
-    // https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature
     auto points = POINTS;
     auto weights = WEIGHTS;
     int n = points.size();
@@ -487,8 +477,6 @@ T numerical_integral_length(const Poly<T>& x, const Poly<T>& y, T A, T B) {
 template<typename T>
 T numerical_integral(const Poly<T>& num,
                      const Poly<T>& den, T A, T B) {
-    // Legendre's quadrature. Need integrate_points.txt , integrate_weights.txt
-    // https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature
     auto points  = POINTS;
     auto weights = WEIGHTS;
     int n = points.size();

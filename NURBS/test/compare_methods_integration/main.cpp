@@ -1,12 +1,15 @@
 #include "../../nurbs.h"
+#include "../../nurbs2.h"
+
 #include "../../../include/plot.h"
 
-// Сравнение двух методов интегрирования. 
-// Кривая степени P для N={P+2, ... } контрольных точек.
-// Вектор узлов - uniform
 
 #define N_start 10
 
+
+
+// Функция сравнения  двух методов интегрирования (Алгоритм 1 и Алгоритм 2). 
+// Кривая степени P для N={P+2, ... } контрольных точек.
 template<typename T>
 void compare_integration(int p, int N_end) {
     std::cout << N_start << " " << N_end << "\n";
@@ -18,10 +21,12 @@ void compare_integration(int p, int N_end) {
         std::cout << N << "\n";
         vec_N.push_back(N);
         std::vector<Point<T>> cv = generate_points_sorted<T>(N);
-        //std::vector<T> weights = linspace<T>(T(1), T(2), N);
-        std::vector<T> weights = generate_vector<T>(N, T(0.5), T(1.0));
         
-        NURBS<T> NURBS(p, weights,cv);
+        // std::vector<T> weights = linspace<T>(T(1), T(2), N);
+        // std::vector<T> weights = generate_vector<T>(N, T(0.5), T(1.0));
+        
+        NURBS<T> NURBS(p, 1.0, 2.0, cv);
+
         std::complex<T> int1 = NURBS.analytic_integral1(1);
         std::complex<T> int2 = NURBS.analytic_integral2(1);
         
@@ -34,10 +39,13 @@ void compare_integration(int p, int N_end) {
     save_vector_errors<T>(vec_N, vec_error1, "errors_1.out");
     save_vector_errors<T>(vec_N, vec_error2, "errors_2.out");
     
-    plot_errors_(vec_N, vec_error1, "Новый метод");
+    plt::xlabel("Количество контрольных точек", {{"fontsize", "large"}});
+    plt::ylabel("Ошибка", {{"fontsize", "large"}});
+    
+    plot_errors_(vec_N, vec_error1, "Алгоритм 2");
     plot_errors(vec_N, vec_error2, 
                 "compare_int_methods_" + std::to_string(p) + ".png", " ", 
-                "Старый метод");
+                "Алгоритм 1");
     PLOT_END();
 }   
 

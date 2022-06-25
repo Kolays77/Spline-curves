@@ -1,0 +1,5 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/reima/Spline-curves/NURBS/test/circle'
+g++ circle.cpp -I/usr/include/python3.10  -lpython3.10 -O3
+make: Leaving directory '/home/reima/Spline-curves/NURBS/test/circle'
+ 

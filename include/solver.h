@@ -4,18 +4,19 @@
 
 const long double twoPI = 2.0L*M_PI;
 const long double onethird = 1./3L; 
-const long double eps = 1e-13;
+const long double eps = 1e-16;
 
-int solveP3(long double *x, long double a,long double b,long double c) {
-	long double a2 = a*a;
-  	long double a_3 = a*onethird;
-  	long double q  = a_3*a_3 - b*onethird;
-	long double r  = a_3*(a_3*a_3-b*0.5)+c*0.5;
-	long double r2 = r*r;
-	long double q3 = q*q*q;
-	long double A, B;
+template<typename T>
+int solveP3(T *x, T a,T b,T c) {
+	T a2 = a*a;
+  	T a_3 = a*onethird;
+  	T q  = a_3*a_3 - b*onethird;
+	T r  = a_3*(a_3*a_3-b*0.5)+c*0.5;
+	T r2 = r*r;
+	T q3 = q*q*q;
+	T A, B;
     if (r2 < q3) {
-        long double t=r/std::sqrt(q3);
+        T t=r/std::sqrt(q3);
         if(t<-1) t=-1;
         if(t> 1) t= 1;
         
@@ -40,29 +41,31 @@ int solveP3(long double *x, long double a,long double b,long double c) {
 }
 
 // solve x^deg + num = 0
-std::vector<std::complex<long double>> solve_sqrt(int deg, long double num) {
-	std::complex<long double> r = std::pow(std::abs(num), 1.0/deg);
-	long double phi = num < 0.0 ? 0.0 : M_PI;
-	std::vector<std::complex<long double>> res;
+template<typename T>
+std::vector<std::complex<T>> solve_sqrt(int deg, T num) {
+	std::complex<T> r = std::pow(std::abs(num), 1.0/deg);
+	T phi = num < 0.0 ? 0.0 : M_PI;
+	std::vector<std::complex<T>> res;
 	for (int i = 0 ; i < deg; ++i) {
-		res.push_back(r * std::complex<long double>(std::cos((phi + twoPI * i) / deg), std::sin((phi + twoPI * i) / deg)));
+		res.push_back(r * std::complex<T>(std::cos((phi + twoPI * i) / deg), std::sin((phi + twoPI * i) / deg)));
 	}
 	return res;
 }
 
-std::vector<std::complex<long double>> solveP4(long double a, long double b, long double c, long double d) {
+template<typename T>
+std::vector<std::complex<T>> solveP4(T a, T b, T c, T d) {
 	if (std::abs(a) < eps && std::abs(b) < eps && std::abs(c) < eps) 
 		return solve_sqrt(4, d);
 
 	// y^3 − b*y^2 + (ac−4d)*y − a^2*d−c^2+4*b*d = 0
-	long double a3 = -b;
-	long double b3 =  a*c -4.*d;
-	long double c3 = -a*a*d - c*c + 4.*b*d;
+	T a3 = -b;
+	T b3 =  a*c -4.*d;
+	T c3 = -a*a*d - c*c + 4.*b*d;
 
-	long double x3[3];
+	T x3[3];
 	unsigned int iZeroes = solveP3(x3, a3, b3, c3);
 
-	long double q1, q2, p1, p2, D, sqD, y;
+	T q1, q2, p1, p2, D, sqD, y;
 
 	y = x3[0];
 	if(iZeroes != 1) {
@@ -88,7 +91,7 @@ std::vector<std::complex<long double>> solveP4(long double a, long double b, lon
 		p1 = (a*q1-c)/(q1-q2);
 		p2 = (c-a*q2)/(q1-q2);
 	}
-    std::vector<std::complex<long double>> retval(4);
+    std::vector<std::complex<T>> retval(4);
 	D = p1*p1 - 4*q1;
 	if(D < 0.0) {
 		retval[0].real( -p1 * 0.5 );
@@ -114,7 +117,8 @@ std::vector<std::complex<long double>> solveP4(long double a, long double b, lon
     return retval;
 }
 
-std::vector<std::complex<long double>> solveP4(std::vector<long double> poly) {
+template<typename T>
+std::vector<std::complex<T>> solveP4(std::vector<T>& poly) {
     return solveP4(poly[1]/poly[0], poly[2]/poly[0], 
                     poly[3]/poly[0], poly[4]/poly[0]);
 }

@@ -76,7 +76,7 @@ class BsplineBasis:
     def plot_(self, title=None, N=1000):
         ts = linspace(self.knots[0], self.knots[-1], N)
         for i, b in enumerate(self.basis):
-            plt.plot(ts, se.Lambdify(t, b, backend="llvm")(ts), label=f"$B_" + "{" f"{i}p" + "}$")
+            plt.plot(ts, se.Lambdify(t, b, backend="llvm")(ts), label=f"$B_" + "{" f"{i}{self.p}" + "}$")
         if title != None:
             plt.title(title)
         plt.legend()
@@ -92,9 +92,15 @@ class BsplineBasis:
 
 
 if __name__ == "__main__":
-    # n = 4, p = 3, m = 8
-    mpl.rc('text', usetex = True)
 
-    knots = [0, 1, 2, 3, 4, 5, 6, 7]    
+    mpl.rc('text', usetex = True)
+    plt.rcParams["savefig.dpi"] = 400
+    plt.rcParams["savefig.bbox"] = 'tight'
+    #plt.title("$[0, 0, 0, 0, 1/3, 2/3, 1, 1, 1, 1]$")
+    plt.title("$[0, 0, 0, 0, 1/8, 1/8, 1, 1, 1, 1]$")
+    
+    plt.xlabel("$t$", fontsize="x-large")
+
+    knots = [0, 0, 0, 0, 1/8, 1/8, 1, 1, 1, 1]    
     basis_obj = BsplineBasis(3, knots)
     basis_obj.plot_file("basis.png")

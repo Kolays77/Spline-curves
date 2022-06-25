@@ -33,8 +33,8 @@ def plot_map(path):
 
     data1 = pd.DataFrame(values, columns=ns, index=ps)
     ax = sns.heatmap(data1, norm=LogNorm(), cmap= 'coolwarm', vmin = values.min(), vmax = values.max())
-    plt.xlabel("Количество точек")
-    plt.ylabel("Степень кривой")
+    plt.xlabel("Число сегментов сплайна", fontsize="x-large")
+    plt.ylabel("Степень кривой", fontsize="x-large")
     plt.savefig(path)
     plt.close()
 

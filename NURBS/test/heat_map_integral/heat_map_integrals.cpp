@@ -14,7 +14,9 @@
 #define N_end 100
 
 #define P_start 2
-#define P_end 6
+#define P_end 8
+
+std::mutex mut;
 
 template <typename T>
 void worker(std::vector<T> & vec_errors1, 
@@ -22,14 +24,15 @@ void worker(std::vector<T> & vec_errors1,
             int k,
             int p, 
             int N) {
+            //std::vector<Point<T>>& cv2) {
 
-    std::vector<T> knots = generate_clamped_random_knot_vector<T>(N, p);
-    // std::vector<T> weights = generate_vector<T>(N, T(0.5), T(1.0));
+    //std::vector<T> knots = generate_clamped_random_knot_vector<T>(N, p);
+    std::vector<T> weights = generate_vector<T>(N, T(1.0), T(10.0));
     
     std::vector<Point<T>> cv = generate_points_sorted<T>(N);
     
-    NURBS<T>  nurbs_1(p, knots, 1.0, 2.0, cv);
-    NURBS2<T> nurbs_2(p, knots, 1.0, 2.0, cv);
+    NURBS<T>  nurbs_1(p, weights, cv);
+    NURBS2<T> nurbs_2(p, weights, cv);
     
     std::complex<T> int1_1 = nurbs_1.analytic_integral1(1);
     std::complex<T> int1_2 = nurbs_2.analytic_integral1(1);
@@ -39,7 +42,7 @@ void worker(std::vector<T> & vec_errors1,
 
     T error1 = std::abs(int1_1 - std::complex<T>(int2_1));
     T error2 = std::abs(int1_2 - std::complex<T>(int2_2));
-
+    
     vec_errors1[k] = error1;
     vec_errors2[k] = error2;    
 }
@@ -51,8 +54,8 @@ void integral_fixed_deg() {
     // integral with increasing number of points
     // для нового числа точек происходит перегенерация
     
-    std::vector<std::vector<T>> vec_errors1(P_end - P_start + 1, std::vector<T>(N_end - N_start + 1));
-    std::vector<std::vector<T>> vec_errors2(P_end - P_start + 1, std::vector<T>(N_end - N_start + 1));
+    std::vector<std::vector<T>> vec_errors1(P_end - P_start + 1, std::vector<T>(N_end - N_start + 1, 0.0));
+    std::vector<std::vector<T>> vec_errors2(P_end - P_start + 1, std::vector<T>(N_end - N_start + 1, 0.0));
 
     std::vector<int> vec_N;
     
@@ -65,6 +68,8 @@ void integral_fixed_deg() {
     for(int N = N_start; N <= N_end; ++N) {
         std::cout << N << "\n";
         vec_N.push_back(N);
+        
+        //std::vector<Point<T>> cv = generate_points_sorted<T>(N);
 
         for (int p=P_start; p <= P_end; ++p) {  
             

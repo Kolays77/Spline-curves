@@ -1,6 +1,17 @@
 #include "../include/Point.h"
 #include "../include/tools.h"
 
+
+/*
+Алгоритм де Бура для вычисления точки  кривой для k-го сегмента.
+Параметры:
+    t - параметр t \in [0, 1];
+    k - номер сегмента;
+    knots - вектор узлов;
+    points - вектор констрольных точек на плоскости;
+    p - степень кривой.
+*/
+
 template< typename T>
 Point<T> num_de_boor(double t,
              int k,
@@ -28,7 +39,16 @@ Point<T> num_de_boor(double t,
     return d[p];
 }
 
-
+/*
+Функция создания B-сплайн кривой численно.
+Параметры:
+    knots - вектор узлов;
+    cv - вектор констрольных точек на плоскости;
+    p - степень кривой;
+    N - требуемое количество точек на выходе.
+Результат:
+    points - N точек на кривой. 
+*/
 template<typename T>
 std::vector<Point<T>> create_curve(int p,
                                    std::vector<T>& knots,
@@ -47,15 +67,5 @@ std::vector<Point<T>> create_curve(int p,
             ++i;
             t = ts[i];
         }
-    return points;
-}
-
-
-template <typename T>
-std::vector<Point<T>> test_numerical(int p){
-    std::vector<Point<T>> cv = load_points<T>("points.in");
-    std::vector<T> knots = create_knots<T>(cv.size(), p);
-    std::vector<Point<T>> points = create_curve<T>(p, knots, cv, 1000);
-    save_points("points_num.out", points);
     return points;
 }

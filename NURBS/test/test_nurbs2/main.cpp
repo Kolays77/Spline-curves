@@ -6,25 +6,24 @@
 template <typename T>
 void test_nurbs_integrals(int p, int n ) {
     std::vector<Point<T>> cv = generate_points_sorted<T>(n);
-    save_points("cv.out", cv);
-    
 
     std::complex<T> int0_1;
     std::complex<T> int0_2;
     
     std::complex<T> int1;
     std::complex<T> int2;
+
+    // std::vector<T> knots = generate_clamped_random_knot_vector<T>(n, p);
+    // //std::vector<T> weights = linspace(T(1.0), T(2.0), cv.size());
+    // save_vector<T>(weights, "w");
     
-    std::vector<T> knots = generate_clamped_random_knot_vector<T>(n, p);
-    std::vector<T> weights = linspace(T(1.0), T(2.0), cv.size());
-    // std::vector<T> weights = generate_vector<T>(n, 0.5, 1.0);
-   
-    NURBS<T> nurbs1(p, knots, weights, cv);
-    NURBS2<T> nurbs2(p, knots, weights, cv);
+    NURBS<T> nurbs1(p, 1.0, 2.0,  cv);
+    NURBS2<T> nurbs2(p, 1.0, 2.0, cv);
     
     nurbs1.save_coefs();
     nurbs2.save_coefs();
     
+
     std::vector<Point<T>> points_1 = nurbs1.get_points(1000);
     std::vector<Point<T>> points_2 = nurbs2.get_points(1000);
     std::cout << std::setprecision(15);
@@ -44,10 +43,11 @@ void test_nurbs_integrals(int p, int n ) {
     std::cout << "Num: "        << int0_2 << "\n";
     std::cout << "Analytic: "    << int2 << "\n";
     std::cout << "Error: " << std::abs(int0_2 - int2) << "\n";
-    
 
     plot_curve(cv, points_1, "plot1.png", "NURBS1. p =" + std::to_string(p), " ");
     plot_curve(cv, points_2, "plot2.png", "NURBS2. p =" + std::to_string(p), " ");    
+
+    save_points("cv.out", cv);
     PLOT_END(); 
 }
 

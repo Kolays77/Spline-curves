@@ -1,0 +1,5 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/reima/Spline-curves/B-spline/test/simple'
+g++ main.cpp -I/usr/include/python3.10  -lpython3.10 
+make: Leaving directory '/home/reima/Spline-curves/B-spline/test/simple'
+ 

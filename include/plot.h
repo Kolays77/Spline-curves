@@ -3,28 +3,30 @@
 
 #include "Point.h"
 
-//compile  g++ main.cpp -I/usr/include/python3.10  -lpython3.10 
+//Флаги компиляции: -I/usr/include/python3.10  -lpython3.10 
 
 namespace plt = matplotlibcpp;
 
 
-// HELP FUNCTIONS
-// After calling the rendering functions, you need to call the function to kill python_interpreter
- //https://stackoverflow.com/questions/67533541/py-finalize-resulting-in-segmentation-fault-for-python-3-9-but-not-for-python/67577360#67577360
+// Вспомогательные функции 
 
+
+// After calling the rendering functions, you need to call the function to kill python_interpreter
+//https://stackoverflow.com/questions/67533541/py-finalize-resulting-in-segmentation-fault-for-python-3-9-but-not-for-python/67577360#67577360
 void PLOT_END() {
     plt::detail::_interpreter::kill();
 }
 
+// Настройка параметров рисунка.
 void set_figure(std::string title="") {
-
     plt::title(title);
     std::map<std::string, std::string> keywords_fig;
-    keywords_fig["savefig.bbox"] = "tight";
+    keywords_fig["savefig.bbox"] = "tight"; // узкие рамки.
     plt::rcparams(keywords_fig);
 }
 
-// PLOT FUNCTIONS WITHOUT SAVING // 
+
+// Функции отрисовки графиков с сохранением рисунка в файл: 
 
 template<typename T>
 void plot_y_line_(T value, std::vector<int> xs) {
@@ -77,8 +79,8 @@ void plot_curve_( std::vector<T>& x,
         plt::plot(x, y);
     } else {
         keywords_points["label"] = legend;
+        keywords_points["linewidth"] = "2";
         plt::plot(x, y, keywords_points);
-
     }
 }
 
@@ -92,7 +94,9 @@ void plot_curve_( std::vector<T>& cv_x,
     
     std::map<std::string, std::string> keywords_cv;
     keywords_cv["color"] = "green";
-    plt::scatter(cv_x, cv_y, 10.0, keywords_cv);
+    keywords_cv["label"] = "Контрольные т.";
+
+    plt::scatter(cv_x, cv_y, 20.0, keywords_cv);
     plot_curve_(x, y, legend);
 }
 
@@ -142,8 +146,7 @@ void plot_curve_(std::vector<Point<T>>& points,
 }
 
 
-// PLOT FUNCTIONS WITH SAVING //
-
+// Функции отрисовки графиков с сохранением рисунка в файл:
 
 template<typename T>
 void plot_errors(std::vector<T> xs, 
@@ -157,7 +160,6 @@ void plot_errors(std::vector<T> xs,
     plt::save(out, 300);
     plt::close();  
 }
-
 
 template<typename T>
 void plot_errors(std::vector<int> xs, 
@@ -185,7 +187,6 @@ void plot_errors_scatter(std::vector<int> xs,
     plt::close();  
 }
 
-
 template<typename T>
 void plot_errors( std::vector<T> errors,  
                 const std::string& out="plot.png",
@@ -204,8 +205,6 @@ void plot_errors( std::vector<T> errors,
     plt::close();  
 }
 
-
-
 template<typename T>
 void plot_curve( std::vector<T>& x, 
                 std::vector<T>& y, 
@@ -218,8 +217,6 @@ void plot_curve( std::vector<T>& x,
     plt::save(out, 300);
     plt::close();
 }
-
-
 
 template<typename T>
 void plot_curve( std::vector<T>& cv_x,
@@ -236,7 +233,6 @@ void plot_curve( std::vector<T>& cv_x,
     plt::close();
 }
 
-
 template<typename T>
 void plot_curve(std::vector<Point<T>>& cv, 
             std::vector<Point<T>>& points, 
@@ -250,7 +246,6 @@ void plot_curve(std::vector<Point<T>>& cv,
     plt::close();
 }
 
-
 template<typename T>
 void plot_curve(std::vector<Point<T>>& points, 
                 const std::string& out="plot.png",
@@ -258,7 +253,9 @@ void plot_curve(std::vector<Point<T>>& points,
                 const std::string& legend="") {
     set_figure(title);           
     plot_curve_(points, legend);
-    plt::legend();
+    std::map<std::string, std::string> m;
+    m["fontsize"] = "medium";
+    plt::legend(m);
     plt::save(out, 300);
     plt::close();
 }

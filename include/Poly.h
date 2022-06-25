@@ -26,9 +26,11 @@ std::ostream & PrintVec(std::ostream & os,
     return PrintIter(os, vec.begin(), vec.end()) << "]";
 }
 
+
+// Класс многочлен.
+// ПРИМЕР: x^3 + 2x^2 + x + 5 := [1, 2, 1, 5]
 template < typename T = long double >
 class Poly {
-    // x^3 + 2x^2 + x + 5 := [1, 2, 1, 5]
     std::vector<T> coef_;
     size_t deg_;
 
@@ -41,50 +43,61 @@ public:
     explicit Poly(size_t deg, T value);
     explicit Poly(std::vector<T> coef);
     explicit Poly(T value);
-
     size_t deg() const;
     const std::vector<T> & GetCoef() const;
-
     void Clear();
-
     Poly der() const;
     Poly der(int deg) const;
     Poly antider() const;
     T integral(T from, T to) const;
-
     void update();
-    void update_real(T eps_);
+    void update_real(T eps_ = 1e-10);
     void resize(int deg);
-
     T normalize();
-
     T eval(const T& x) const ;
-
     std::complex<T> At_complex(const std::complex<T> & x) const;
     T At(const T & x) const;
-
     T At2(const T & x) const; //fma only for double
     std::vector<T> At(const std::vector<T>& xs) const;
-
     T operator[](size_t index) const;
     T & operator[](size_t index);
-
     Poly & operator = (const Poly & rhs);
     Poly & operator *= (const Poly & rhs);
     Poly & operator *= (T rhs);
-
     Poly & operator += (const Poly & rhs);
     Poly & operator += (const T & rhs);
-
     Poly & operator -= (const Poly & rhs);
-
     Poly<T> & operator /= (const Poly<T>& poly);
     Poly & operator /= (T value);
     std::vector<std::pair<int, std::complex<T>>> solve(int type = 1);
 
 };
 
+template < typename T >
+Poly<T> operator - (T value, Poly<T> p) { 
+    p *= T(-1.0);
+    p[p.deg()] += value;
+	return p;
+}
 
+template < typename T >
+Poly<T> operator - (Poly<T> p, T value) { 
+	p[p.deg()] -= value;
+	return p;
+}
+
+
+template < typename T >
+Poly<T> operator + (Poly<T> p, T value) { 
+	p[p.deg()] += value;
+	return p;
+}
+
+template < typename T >
+Poly<T> operator + (T value, Poly<T> p) { 
+	p[p.deg()] += value;
+	return p;
+}
 
 template < typename T >
 Poly<T> operator + (const Poly<T> & p1,
@@ -118,7 +131,7 @@ bool operator == (const Poly<T> & p1,
 
 /////////////////////////////////////////////////////////////
 
-// Constructors
+// Конструкторы
 
 template < typename T >
 Poly<T> ::Poly(): coef_({0}), deg_(0) {}
@@ -178,7 +191,8 @@ T Poly<T>::integral(T from, T to) const {
 }
 
 
-// Evaluating antiderivative F'(x) = f(x)
+// Evaluating antiderivative F(x) : F'(x) = f(x)
+// Вычисление первообразной F(x) : F'(x) = f(x)
 
 template <typename T>
 Poly<T> Poly<T>::antider() const {
@@ -417,7 +431,7 @@ std::vector<std::pair<int, std::complex<T>>> solve_cubic2(const Poly<T>& poly){
 }
 
 template<typename T>
-std::vector<std::pair<int, std::complex<T>>>  solve_cubic(Poly<T> poly)  {
+std::vector<std::pair<int, std::complex<T>>>  solve_cubic(Poly<T>& poly)  {
     std::vector<std::pair<int, std::complex<T>>> roots;
     T x[3];
     int type = solveP3(x, poly[1]/poly[0], poly[2]/poly[0],  poly[3]/poly[0]);
@@ -437,7 +451,7 @@ std::vector<std::pair<int, std::complex<T>>>  solve_cubic(Poly<T> poly)  {
 }
 
 template<typename T>
-std::vector<std::pair<int, std::complex<T>>>  solve_quartic(Poly<T> poly)  {
+std::vector<std::pair<int, std::complex<T>>>  solve_quartic(Poly<T>& poly)  {
     std::vector<std::pair<int, std::complex<T>>> roots(4);
     std::vector<std::complex<T>> vec_root = solveP4(poly[1]/poly[0], 
                                                     poly[2]/poly[0], 
@@ -457,8 +471,8 @@ std::vector<std::pair<int, std::complex<T>>>  Poly<T>::solve(int type)  {
         return {{1, std::complex<T>(-coef_[1]/coef_[0])}};
     case 2:
         return solve_quadratic(*this);
-    case 3:
-        return solve_cubic(*this);
+    // case 3:
+    //     return solve_cubic(*this);
     // case 4:
     //     return solve_quartic(*this);
     default:
@@ -501,7 +515,8 @@ T lower_bound(const Poly<std::complex<T>>& poly) {
     return  1 / upper_bound(poly);
 }
 
-
+// NEED normalize before using !
+// Optimization
 template<typename T>
 std::vector<std::pair<int, std::complex<T>>> solve_with_eigenvalues(Poly<T> poly) {
     if (poly[0] != 1.0)
@@ -708,8 +723,9 @@ Poly<T> operator / (const Poly<T> & p,
                     const T & value) {
     size_t deg = p.deg();
     Poly<T> ans(deg, 0);
+    T temp = 1.0 / value;
     for (size_t i = 0; i <= deg; ++i) {
-        ans[i] = p[i] / value;
+        ans[i] = p[i] * temp;
     }
     return ans;
 }
@@ -741,12 +757,6 @@ std::vector<Poly<T>> operator/(const Poly<T>& lhs,
     return {Poly<T>{res}, rem};
 }
 
-// template < typename T >
-// std::ostream & operator << (std::ostream & out,
-//                             const Poly<T> & p) {
-//     return PrintVec(out, p.GetCoef());
-// }
-
 template < typename T >
 std::ostream & operator << (std::ostream & out,
                             const std::complex<T> & val) {
@@ -754,7 +764,6 @@ std::ostream & operator << (std::ostream & out,
 }
 
 
-// FOR DEBUG and wolfram
 template < typename T >
 std::ostream & operator << (std::ostream & out,
                             const Poly<T> & p) {
@@ -839,10 +848,8 @@ std::vector<std::complex<T>> frac_decomp_matrix(Poly<T> num, Poly<T> den,
             ++ii;
         }
     }
-    //std::cout << matrix << "\n";
-    Eigen::VectorX<std::complex<T>> x = matrix.colPivHouseholderQr().solve(b);
 
-    //std::cout << x << "\n";
+    Eigen::VectorX<std::complex<T>> x = matrix.colPivHouseholderQr().solve(b);
     for(int i =0; i < x.size(); ++i)
         res.push_back(x(i));
 
